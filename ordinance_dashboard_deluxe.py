@@ -23,7 +23,7 @@ APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_NAME = "[확인용] 현행조례 (위임조례 분석)(광역기초구분).xlsx"
 DEFAULT_PATH = os.path.join(APP_DIR, DEFAULT_NAME)
 PARQUET_PATH = os.path.join(APP_DIR, "data", "ordinances.parquet")
-EXCEL_DATA_PATH = os.path.join(APP_DIR, "data", "ordinances.xlsx")
+EXCEL_DATA_PATH = os.path.join(APP_DIR, "data", "korean_ordinance.xlsx")
 
 @st.cache_data(show_spinner=True)
 def read_excel_path(path: str) -> pd.DataFrame:
@@ -41,7 +41,7 @@ def load_data(file_uploader, path_input: str):
     if os.path.exists(PARQUET_PATH):
         return read_parquet_path(PARQUET_PATH), "data/ordinances.parquet"
     if os.path.exists(EXCEL_DATA_PATH):
-        return read_excel_path(EXCEL_DATA_PATH), "data/ordinances.xlsx"
+        return read_excel_path(EXCEL_DATA_PATH), "data/korean_ordinance.xlsx"
     if file_uploader is not None:
         return read_excel_bytes(file_uploader.read()), f"업로드: {file_uploader.name}"
     if path_input and os.path.exists(path_input):
