@@ -14,13 +14,13 @@ import numpy as np
 import streamlit as st
 import altair as alt
 
-st.set_page_config(page_title="조례 교차분석 대시보드 (Deluxe)", layout="wide")
+st.set_page_config(page_title="조례 교차분석 대시보드", layout="wide")
 
 # -----------------------------
 # 경로 설정
 # -----------------------------
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_NAME = "[확인용] 현행조례 (위임조례 분석)(광역기초구분).xlsx"
+DEFAULT_NAME = "korean_ordinance.xlsx"
 DEFAULT_PATH = os.path.join(APP_DIR, DEFAULT_NAME)
 PARQUET_PATH = os.path.join(APP_DIR, "data", "ordinances.parquet")
 EXCEL_DATA_PATH = os.path.join(APP_DIR, "data", "korean_ordinance.xlsx")
