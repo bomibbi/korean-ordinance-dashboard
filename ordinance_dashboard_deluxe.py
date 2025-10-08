@@ -73,29 +73,6 @@ DATA_PATH = os.path.join(APP_DIR, "data", "korean_ordinance.xlsx")
 def load_excel(path):
     return pd.read_excel(path)
 
-# -----------------------------
-# 헤더
-# -----------------------------
-st.title("📊 지방자치단체 조례 통계 분석 대시보드")
-
-# 데이터 요약 (메인 상단에 가로 배치)
-st.markdown("### 📈 데이터 요약")
-col1, col2, col3, col4, col5, col6 = st.columns(6)
-with col1:
-    st.metric("총 조례 수", f"{총_조례수:,}")
-with col2:
-    st.metric("광역자치단체", f"{광역_unique}개")
-with col3:
-    st.metric("기초자치단체", f"{기초_unique}개")
-with col4:
-    st.metric("조례 분야", f"{분야_unique}개")
-with col5:
-    st.metric("지방의회 기수", 기수_range)
-with col6:
-    st.metric("데이터 출처", "한국")
-
-st.markdown("---")
-
 # 데이터 로드
 if not os.path.exists(DATA_PATH):
     st.error(f"⚠️ 데이터 파일을 찾을 수 없습니다: {DATA_PATH}")
@@ -104,8 +81,6 @@ if not os.path.exists(DATA_PATH):
 
 with st.spinner("📂 데이터 로딩 중..."):
     df = load_excel(DATA_PATH)
-
-st.success(f"✅ 데이터 로드 완료: {len(df):,}건")
 
 # 필수 컬럼 확인
 required_cols = ["광역", "기초", "최종분야", "지방의회_기수"]
@@ -149,12 +124,35 @@ df["is_광역자체"] = df["광역"] == df["기초"]
 # 기초_full 생성 (광역+기초 조합으로 고유 식별)
 df["기초_full"] = df["광역"] + " " + df["기초"]
 
-# 고유값 추출 (데이터 요약용)
+# -----------------------------
+# 헤더 및 데이터 요약
+# -----------------------------
+st.title("📊 지방자치단체 조례 통계 분석 대시보드")
+
+# 데이터 요약 변수 계산
+총_조례수 = len(df)
 광역_unique = len(광역_list)
 기초_unique = df[~df["is_광역자체"]][['광역', '기초']].drop_duplicates().shape[0]
 분야_unique = len(분야_list)
 기수_range = f"{기수_list[0]} ~ {기수_list[-1]}"
-총_조례수 = len(df)
+
+# 데이터 요약 (메인 상단에 가로 배치)
+st.markdown("### 📈 데이터 요약")
+col1, col2, col3, col4, col5, col6 = st.columns(6)
+with col1:
+    st.metric("총 조례 수", f"{총_조례수:,}")
+with col2:
+    st.metric("광역자치단체", f"{광역_unique}개")
+with col3:
+    st.metric("기초자치단체", f"{기초_unique}개")
+with col4:
+    st.metric("조례 분야", f"{분야_unique}개")
+with col5:
+    st.metric("지방의회 기수", 기수_range)
+with col6:
+    st.metric("데이터 출처", "한국")
+
+st.markdown("---")
 
 # -----------------------------
 # 유틸리티 함수
@@ -661,7 +659,7 @@ with tab6:
     광역_평균.columns = ['광역', '평균조례수', '기초단체수']
     광역_평균 = 광역_평균.sort_values('평균조례수', ascending=False).round(2)
     
-    st.dataframe(광역_평균, use_container_width=True)
+    st.dataframe(광역_평균, use_container_width=True, hide_index=True)
     
     bar_chart2 = alt.Chart(광역_평균).mark_bar().encode(
         x=alt.X('평균조례수:Q', title='평균 조례 수'),
