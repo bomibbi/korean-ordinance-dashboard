@@ -13,119 +13,105 @@ st.set_page_config(page_title="조례 통계 분석", layout="wide", initial_sid
 
 # CSS: 사이드바 완전 제거 + 메인 영역 확장 + 탭 강조
 st.markdown("""
-    <style>
-    /* =========================
-       0) 사이드바 제거 + 메인 컨테이너 폭
-       ========================= */
-    [data-testid="stSidebar"]{display:none;}
-    .main .block-container{max-width:100%;padding-left:2rem;padding-right:2rem;}
+<style>
+/* ───────────────────────────────────────────
+   0) 공통: 사이드바 제거 + 컨테이너 폭
+   ─────────────────────────────────────────── */
+[data-testid="stSidebar"]{display:none;}
+.main .block-container{max-width:100%;padding-left:2rem;padding-right:2rem;}
 
-    /* =========================================================
-       1) 데이터 요약 박스: 내부 항목을 '균등 크기 카드'로 표시
-       - 기존 HTML 인라인 스타일 위에 덮어쓰기 위해 !important 사용
-       - 같은 줄 높이 맞춤, 카드 배경/테두리/그림자 적용
-       ========================================================= */
-    /* 회색 박스 바로 안의 플렉스 컨테이너 탐지 */
-    div[style*="background-color: #f0f2f6"] > div[style*="display: flex"]{
-        gap:16px !important;
-    }
-    /* 각 항목을 카드처럼 */
-    div[style*="background-color: #f0f2f6"] > div[style*="display: flex"] > div{
-        background:#fff !important;
-        border:1px solid #e5e7eb !important;
-        border-radius:10px !important;
-        padding:16px 12px !important;
-        display:flex !important;
-        flex-direction:column !important;
-        justify-content:center !important;
-        align-items:center !important;
-        min-height:92px !important;      /* 줄높이 균일 */
-        box-shadow:0 1px 2px rgba(0,0,0,.04) !important;
-        flex:1 1 0% !important;           /* 균등 너비 */
-    }
-    /* 카드 안의 레이블/값 크기 보정 */
-    div[style*="background-color: #f0f2f6"] [style*="font-size: 13px"]{
-        font-size:13px !important; color:#6b7280 !important; font-weight:600 !important; margin-bottom:6px !important;
-    }
-    div[style*="background-color: #f0f2f6"] [style*="font-size: 22px"]{
-        font-size:22px !important; color:#111827 !important; font-weight:600 !important;
-    }
+/* ───────────────────────────────────────────
+   1) 데이터 요약 박스: 내부 항목을 균등 카드로
+   - 텍스트/색상은 그대로, 레이아웃/박스만 덮어쓰기
+   - 인라인 스타일 이기기 위해 !important 사용
+   - 선택자: 회색 배경 컨테이너 바로 아래의 flex 컨테이너 자식들
+   ─────────────────────────────────────────── */
+div[style*="background-color:#f0f2f6"], 
+div[style*="background-color: #f0f2f6"]{
+  /* 요약 박스 바깥 여백만 보정 */
+  margin:20px 0 30px 0 !important;
+}
+div[style*="background-color:#f0f2f6"] > div[style*="display:flex"],
+div[style*="background-color: #f0f2f6"] > div[style*="display: flex"]{
+  gap:16px !important;
+}
+div[style*="background-color:#f0f2f6"] > div[style*="display:flex"] > div,
+div[style*="background-color: #f0f2f6"] > div[style*="display: flex"] > div{
+  background:#fff !important;
+  border:1px solid #e5e7eb !important;
+  border-radius:10px !important;
+  padding:16px 12px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+  align-items:center !important;
+  min-height:92px !important;
+  box-shadow:0 1px 2px rgba(0,0,0,.04) !important;
+  flex:1 1 0% !important;  /* 균등 너비 */
+}
+/* 카드 안 텍스트만 살짝 보정 (인라인 이김) */
+div[style*="background-color:#f0f2f6"] [style*="font-size:13px"],
+div[style*="background-color: #f0f2f6"] [style*="font-size: 13px"]{
+  font-size:13px !important;color:#6b7280 !important;font-weight:600 !important;margin-bottom:6px !important;
+}
+div[style*="background-color:#f0f2f6"] [style*="font-size:22px"],
+div[style*="background-color: #f0f2f6"] [style*="font-size: 22px"]{
+  font-size:22px !important;color:#111827 !important;font-weight:600 !important;
+}
 
-    /* =========================================
-       2) 메인 탭 디자인 (이미지와 유사한 스타일)
-       - 상단 얇은 라인 + 활성 탭만 진한 밑줄
-       - 비활성은 회색 텍스트, 배경 없음
-       ========================================= */
-    /* 메인 탭 리스트: 전체 하단 라인 */
-    .main .block-container > div [data-testid="stTabs"]:not([data-baseweb="tab-panel"] *) [data-baseweb="tab-list"]{
-        display:flex; justify-content:flex-start; gap:24px; width:100%;
-        padding:0 0 0.25rem 0; margin:0 0 12px 0;
-        border-bottom:1px solid #e5e7eb !important;  /* 연한 하단 선 */
-        background:transparent !important;
-    }
-    /* 메인 탭 버튼: 미니멀 텍스트 형태 */
-    .main .block-container > div [data-testid="stTabs"]:not([data-baseweb="tab-panel"] *) button[data-baseweb="tab"]{
-        background:transparent !important;
-        border:none !important;
-        border-radius:0 !important;
-        height:auto; padding:8px 2px !important;
-        color:#6b7280 !important;          /* 회색 텍스트 */
-        font-size:16px !important; font-weight:600 !important;
-        box-shadow:none !important;
-        border-bottom:2px solid transparent !important;  /* 기본 밑줄 투명 */
-        transition:color .15s ease, border-color .15s ease;
-    }
-    /* 호버 시 살짝 진하게 */
-    .main .block-container > div [data-testid="stTabs"]:not([data-baseweb="tab-panel"] *) button[data-baseweb="tab"]:hover{
-        color:#111827 !important;
-    }
-    /* 활성 탭: 진한 텍스트 + 얇은(2px) 밑줄 */
-    .main .block-container > div [data-testid="stTabs"]:not([data-baseweb="tab-panel"] *) button[aria-selected="true"]{
-        color:#111827 !important;
-        border-bottom:2px solid #111827 !important;
-        font-weight:700 !important;
-        background:transparent !important;
-    }
+/* ───────────────────────────────────────────
+   2) 메인 탭(가장 위 탭) 스타일: 이미지와 유사
+   - data-testid 의존 제거 → WAI-ARIA 역할 기반 선택자
+   - 첫 번째 탭리스트만 타깃 (메인 탭)
+   ─────────────────────────────────────────── */
+.main .block-container [role="tablist"]:first-of-type{
+  display:flex;gap:24px;width:100%;
+  padding:0 0 .25rem 0;margin:0 0 12px 0;
+  border-bottom:1px solid #e5e7eb !important;
+  background:transparent !important;
+}
+.main .block-container [role="tablist"]:first-of-type [role="tab"]{
+  background:transparent !important;
+  border:none !important;border-radius:0 !important;
+  height:auto;padding:8px 2px !important;
+  color:#6b7280 !important;font-size:16px !important;font-weight:600 !important;
+  box-shadow:none !important;
+  border-bottom:2px solid transparent !important;
+  transition:color .15s ease,border-color .15s ease;
+}
+.main .block-container [role="tablist"]:first-of-type [role="tab"]:hover{
+  color:#111827 !important;
+}
+.main .block-container [role="tablist"]:first-of-type [role="tab"][aria-selected="true"]{
+  color:#111827 !important;font-weight:700 !important;
+  border-bottom:2px solid #111827 !important;
+}
 
-    /* =========================================
-       3) 하위 탭(탭 안의 탭): Pill 형태
-       - 활성: 진회색 배경/흰 글자
-       - 비활성: 흰 배경 + 얇은 테두리
-       ========================================= */
-    [data-baseweb="tab-panel"] [data-baseweb="tab-list"]{
-        display:flex; gap:16px; padding:8px 0; border-bottom:none !important; background:transparent !important;
-    }
-    [data-baseweb="tab-panel"] button[data-baseweb="tab"]{
-        background:#fff !important;
-        color:#374151 !important;
-        border:1px solid #e5e7eb !important;
-        border-radius:8px !important;
-        padding:8px 16px !important;
-        font-size:14px !important; font-weight:600 !important;
-        box-shadow:none !important;
-    }
-    [data-baseweb="tab-panel"] button[data-baseweb="tab"]:hover{
-        background:#f3f4f6 !important;
-    }
-    [data-baseweb="tab-panel"] button[aria-selected="true"]{
-        background:#4b5563 !important; /* 진회색 */
-        color:#fff !important;
-        border-color:#4b5563 !important;
-    }
-    /* 탭 하이라이트/보더 제거 */
-    [data-baseweb="tab-highlight"], [data-baseweb="tab-border"]{display:none !important;}
+/* ───────────────────────────────────────────
+   3) 하위 탭(패널 내부 탭)은 pill 형태 유지
+   ─────────────────────────────────────────── */
+[data-baseweb="tab-panel"] [role="tablist"]{
+  display:flex;gap:16px;padding:8px 0;border-bottom:none !important;background:transparent !important;
+}
+[data-baseweb="tab-panel"] [role="tab"]{
+  background:#fff !important;color:#374151 !important;
+  border:1px solid #e5e7eb !important;border-radius:8px !important;
+  padding:8px 16px !important;font-size:14px !important;font-weight:600 !important;
+  box-shadow:none !important;
+}
+[data-baseweb="tab-panel"] [role="tab"]:hover{background:#f3f4f6 !important;}
+[data-baseweb="tab-panel"] [role="tab"][aria-selected="true"]{
+  background:#4b5563 !important;color:#fff !important;border-color:#4b5563 !important;
+}
 
-    /* =========================================
-       4) 요약 메트릭 기본 값(혹시 사용 중일 때)
-       ========================================= */
-    [data-testid="stMetricValue"]{font-size:18px;font-weight:700;}
-    [data-testid="stMetricLabel"]{font-size:14px;font-weight:600;}
+/* 시각적 보조(기본 메트릭 크기) */
+[data-testid="stMetricValue"]{font-size:18px;font-weight:700;}
+[data-testid="stMetricLabel"]{font-size:14px;font-weight:600;}
 
-    /* 차트/테이블 영향 금지(문서화용 no-op) */
-    svg text{} .stDataFrame{}
-    </style>
+/* no-op: 차트/테이블에 영향 금지 */
+svg text{} .stDataFrame{}
+</style>
 """, unsafe_allow_html=True)
-
 
 # -----------------------------
 # 데이터 로드 (GitHub data 폴더에서)
