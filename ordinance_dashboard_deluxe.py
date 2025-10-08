@@ -26,47 +26,48 @@ st.markdown("""
         padding-right: 2rem;
     }
     
-    /* 메인 탭 스타일 - 첫 번째 탭만 */
+    /* 메인 탭 컨테이너 */
     section[data-testid="stVerticalBlock"] > div:nth-child(3) [data-baseweb="tab-list"] {
-        gap: 10px;
-        padding: 0px 0px 0px 0px;
+        gap: 5px;
+        padding: 0px;
         width: 100%;
         display: flex;
         justify-content: space-between;
         border-bottom: 2px solid #e0e0e0 !important;
         background: transparent !important;
+        margin-bottom: 20px;
     }
     
+    /* 메인 탭 버튼 기본 스타일 */
     section[data-testid="stVerticalBlock"] > div:nth-child(3) button[data-baseweb="tab"] {
         flex: 1;
-        height: 60px;
-        padding: 0px 24px;
+        height: 55px;
+        padding: 0px 20px;
         background-color: transparent;
         border-radius: 0px;
-        font-size: 16px;
+        font-size: 17px;
         font-weight: 600;
         border: none !important;
+        border-bottom: 3px solid transparent !important;
         box-shadow: none;
         color: #666;
-        position: relative;
+        transition: all 0.2s ease;
     }
     
+    /* 메인 탭 호버 효과 */
+    section[data-testid="stVerticalBlock"] > div:nth-child(3) button[data-baseweb="tab"]:hover {
+        color: #1f77b4;
+        background-color: rgba(31, 119, 180, 0.05);
+    }
+    
+    /* 메인 탭 선택된 상태 */
     section[data-testid="stVerticalBlock"] > div:nth-child(3) button[aria-selected="true"] {
         background-color: transparent !important;
         color: #1f77b4 !important;
+        font-weight: 700 !important;
         border: none !important;
-        box-shadow: none;
         border-bottom: 3px solid #1f77b4 !important;
-    }
-    
-    section[data-testid="stVerticalBlock"] > div:nth-child(3) button[aria-selected="true"]::after {
-        content: '';
-        position: absolute;
-        bottom: -2px;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background-color: #1f77b4;
+        box-shadow: none;
     }
     
     /* 하위 탭 스타일 */
@@ -199,23 +200,23 @@ st.markdown(f"""
     <div style="display: flex; justify-content: space-between; gap: 20px;">
         <div style="flex: 1; text-align: center;">
             <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">총 조례 수</div>
-            <div style="font-size: 28px; font-weight: 400; color: #1f1f1f;">{이_조례수:,}</div>
+            <div style="font-size: 22px; font-weight: 400; color: #1f1f1f;">{이_조례수:,}</div>
         </div>
         <div style="flex: 1; text-align: center;">
             <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">광역자치단체</div>
-            <div style="font-size: 28px; font-weight: 400; color: #1f1f1f;">{광역_unique}개</div>
+            <div style="font-size: 22px; font-weight: 400; color: #1f1f1f;">{광역_unique}개</div>
         </div>
         <div style="flex: 1; text-align: center;">
             <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">기초자치단체</div>
-            <div style="font-size: 28px; font-weight: 400; color: #1f1f1f;">{기초_unique}개</div>
+            <div style="font-size: 22px; font-weight: 400; color: #1f1f1f;">{기초_unique}개</div>
         </div>
         <div style="flex: 1; text-align: center;">
             <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">조례 분야</div>
-            <div style="font-size: 28px; font-weight: 400; color: #1f1f1f;">{분야_unique}개</div>
+            <div style="font-size: 22px; font-weight: 400; color: #1f1f1f;">{분야_unique}개</div>
         </div>
         <div style="flex: 1; text-align: center;">
             <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">지방의회 기수</div>
-            <div style="font-size: 28px; font-weight: 400; color: #1f1f1f;">{기수_range}</div>
+            <div style="font-size: 22px; font-weight: 400; color: #1f1f1f;">{기수_range}</div>
         </div>
     </div>
 </div>
