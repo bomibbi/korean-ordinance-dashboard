@@ -52,7 +52,7 @@ st.markdown("""
     
     /* 데이터 요약 메트릭 스타일 */
     [data-testid="stMetricValue"] {
-        font-size: 28px;
+        font-size: 18px;
         font-weight: bold;
     }
     
@@ -138,7 +138,7 @@ st.title("📊 지방자치단체 조례 통계 분석 대시보드")
 
 # 데이터 요약 (메인 상단에 가로 배치)
 st.markdown("### 📈 데이터 요약")
-col1, col2, col3, col4, col5, col6 = st.columns(6)
+col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     st.metric("총 조례 수", f"{총_조례수:,}")
 with col2:
@@ -149,8 +149,6 @@ with col4:
     st.metric("조례 분야", f"{분야_unique}개")
 with col5:
     st.metric("지방의회 기수", 기수_range)
-with col6:
-    st.metric("데이터 출처", "한국")
 
 st.markdown("---")
 
