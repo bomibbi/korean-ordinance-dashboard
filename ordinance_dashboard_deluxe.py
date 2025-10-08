@@ -26,28 +26,45 @@ st.markdown("""
         padding-right: 2rem;
     }
     
-    /* 탭 스타일 강조 */
+    /* 데이터 요약 박스 스타일 추가 */
+    .data-summary-box {
+        background-color: #f0f2f6;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+    
+    /* 탭 스타일 - 배경 제거 및 너비 확장 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background-color: #f0f2f6;
-        padding: 10px;
-        border-radius: 10px;
+        padding: 10px 0px;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
     }
     
     .stTabs [data-baseweb="tab"] {
-        height: 60px;
+        flex: 1;
+        height: 70px;
         padding: 0px 24px;
         background-color: white;
         border-radius: 8px;
-        font-size: 16px;
-        font-weight: 600;
+        font-size: 18px;
+        font-weight: 700;
         border: 2px solid #e0e0e0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .stTabs [aria-selected="true"] {
         background-color: #1f77b4;
         color: white;
         border: 2px solid #1f77b4;
+        box-shadow: 0 4px 8px rgba(31,119,180,0.3);
+    }
+    
+    /* 선택된 탭 하단 주황색 실선 제거 */
+    .stTabs [data-baseweb="tab-highlight"] {
+        display: none;
     }
     
     /* 데이터 요약 메트릭 스타일 */
@@ -130,17 +147,18 @@ df["기초_full"] = df["광역"] + " " + df["기초"]
 st.title("📊 지방자치단체 조례 통계 분석 대시보드")
 
 # 데이터 요약 변수 계산
-총_조례수 = len(df)
+이_조례수 = len(df)
 광역_unique = len(광역_list)
 기초_unique = df[~df["is_광역자체"]][['광역', '기초']].drop_duplicates().shape[0]
 분야_unique = len(분야_list)
 기수_range = f"{기수_list[0]} ~ {기수_list[-1]}"
 
-# 데이터 요약 (메인 상단에 가로 배치)
+# 데이터 요약 박스로 감싸기
+st.markdown('<div class="data-summary-box">', unsafe_allow_html=True)
 st.markdown("### 📈 데이터 요약")
 col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
-    st.metric("총 조례 수", f"{총_조례수:,}")
+    st.metric("총 조례 수", f"{이_조례수:,}")
 with col2:
     st.metric("광역자치단체", f"{광역_unique}개")
 with col3:
@@ -149,6 +167,7 @@ with col4:
     st.metric("조례 분야", f"{분야_unique}개")
 with col5:
     st.metric("지방의회 기수", 기수_range)
+st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -499,7 +518,7 @@ with tab5:
         '기초자치단체': 집중도.index,
         '집중도(표준편차)': 집중도.values,
         '집중 분야': 최대_분야,
-        '총조례수': 기초_분야_pivot.sum(axis=1).loc[집중도.index].values
+        '이조례수': 기초_분야_pivot.sum(axis=1).loc[집중도.index].values
     }).reset_index(drop=True)
     
     col1, col2 = st.columns([1, 1])
@@ -516,7 +535,7 @@ with tab5:
             x=alt.X('집중도(표준편차):Q', title='집중도 (표준편차)'),
             y=alt.Y('기초자치단체:N', sort='-x', title=''),
             color=alt.Color('집중도(표준편차):Q', scale=alt.Scale(scheme='oranges'), legend=None),
-            tooltip=['기초자치단체', alt.Tooltip('집중도(표준편차):Q', format='.2f'), '집중 분야', '총조례수']
+            tooltip=['기초자치단체', alt.Tooltip('집중도(표준편차):Q', format='.2f'), '집중 분야', '이조례수']
         ).properties(height=600)
         
         st.altair_chart(bar_chart, use_container_width=True)
@@ -548,23 +567,23 @@ with tab6:
     st.caption("기초자치단체, 광역자치단체, 전체 순위를 보여줍니다")
     
     # 1. 기초자치단체만 순위
-    기초_조례수 = df[~df["is_광역자체"]].groupby(['광역', '기초']).size().reset_index(name='총조례수')
-    기초_조례수 = 기초_조례수.sort_values('총조례수', ascending=False).reset_index(drop=True)
+    기초_조례수 = df[~df["is_광역자체"]].groupby(['광역', '기초']).size().reset_index(name='이조례수')
+    기초_조례수 = 기초_조례수.sort_values('이조례수', ascending=False).reset_index(drop=True)
     기초_조례수['순위'] = range(1, len(기초_조례수) + 1)
-    기초_조례수 = 기초_조례수[['순위', '광역', '기초', '총조례수']]
+    기초_조례수 = 기초_조례수[['순위', '광역', '기초', '이조례수']]
     
     # 2. 광역자치단체만 순위
-    광역_조례수 = df[df["is_광역자체"]].groupby('광역').size().reset_index(name='총조례수')
-    광역_조례수 = 광역_조례수.sort_values('총조례수', ascending=False).reset_index(drop=True)
+    광역_조례수 = df[df["is_광역자체"]].groupby('광역').size().reset_index(name='이조례수')
+    광역_조례수 = 광역_조례수.sort_values('이조례수', ascending=False).reset_index(drop=True)
     광역_조례수['순위'] = range(1, len(광역_조례수) + 1)
-    광역_조례수 = 광역_조례수[['순위', '광역', '총조례수']]
+    광역_조례수 = 광역_조례수[['순위', '광역', '이조례수']]
     
     # 3. 전체 순위 (기초 + 광역)
-    전체_조례수 = df.groupby(['광역', '기초']).size().reset_index(name='총조례수')
+    전체_조례수 = df.groupby(['광역', '기초']).size().reset_index(name='이조례수')
     전체_조례수['구분'] = 전체_조례수.apply(lambda x: '광역' if x['광역'] == x['기초'] else '기초', axis=1)
-    전체_조례수 = 전체_조례수.sort_values('총조례수', ascending=False).reset_index(drop=True)
+    전체_조례수 = 전체_조례수.sort_values('이조례수', ascending=False).reset_index(drop=True)
     전체_조례수['순위'] = range(1, len(전체_조례수) + 1)
-    전체_조례수 = 전체_조례수[['순위', '구분', '광역', '기초', '총조례수']]
+    전체_조례수 = 전체_조례수[['순위', '구분', '광역', '기초', '이조례수']]
     
     # 탭으로 3개 순위 표시
     순위_tab1, 순위_tab2, 순위_tab3 = st.tabs(["기초자치단체 순위", "광역자치단체 순위", "전체 순위"])
@@ -584,10 +603,10 @@ with tab6:
             top30['기초_full'] = top30['광역'] + ' ' + top30['기초']
             
             bar_chart = alt.Chart(top30).mark_bar().encode(
-                x=alt.X('총조례수:Q', title='총 조례 수'),
+                x=alt.X('이조례수:Q', title='총 조례 수'),
                 y=alt.Y('기초_full:N', sort='-x', title=''),
                 color=alt.Color('광역:N', title='광역'),
-                tooltip=['순위', '광역', '기초', '총조례수']
+                tooltip=['순위', '광역', '기초', '이조례수']
             ).properties(height=600)
             
             st.altair_chart(bar_chart, use_container_width=True)
@@ -609,10 +628,10 @@ with tab6:
         with col2:
             st.markdown("**순위 차트**")
             bar_chart = alt.Chart(광역_조례수).mark_bar().encode(
-                x=alt.X('총조례수:Q', title='총 조례 수'),
+                x=alt.X('이조례수:Q', title='총 조례 수'),
                 y=alt.Y('광역:N', sort='-x', title=''),
-                color=alt.Color('총조례수:Q', scale=alt.Scale(scheme='blues'), legend=None),
-                tooltip=['순위', '광역', '총조례수']
+                color=alt.Color('이조례수:Q', scale=alt.Scale(scheme='blues'), legend=None),
+                tooltip=['순위', '광역', '이조례수']
             ).properties(height=600)
             
             st.altair_chart(bar_chart, use_container_width=True)
@@ -637,10 +656,10 @@ with tab6:
             )
             
             bar_chart = alt.Chart(top30).mark_bar().encode(
-                x=alt.X('총조례수:Q', title='총 조례 수'),
+                x=alt.X('이조례수:Q', title='총 조례 수'),
                 y=alt.Y('표시명:N', sort='-x', title=''),
                 color=alt.Color('구분:N', title='구분', scale=alt.Scale(domain=['광역', '기초'], range=['#e74c3c', '#3498db'])),
-                tooltip=['순위', '구분', '광역', '기초', '총조례수']
+                tooltip=['순위', '구분', '광역', '기초', '이조례수']
             ).properties(height=600)
             
             st.altair_chart(bar_chart, use_container_width=True)
@@ -653,7 +672,7 @@ with tab6:
     # 광역별 평균
     st.markdown("---")
     st.subheader("광역별 기초단체 평균 조례 수")
-    광역_평균 = 기초_조례수.groupby('광역')['총조례수'].agg(['mean', 'count']).reset_index()
+    광역_평균 = 기초_조례수.groupby('광역')['이조례수'].agg(['mean', 'count']).reset_index()
     광역_평균.columns = ['광역', '평균조례수', '기초단체수']
     광역_평균 = 광역_평균.sort_values('평균조례수', ascending=False).round(2)
     
