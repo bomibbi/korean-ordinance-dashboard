@@ -9,7 +9,59 @@ import numpy as np
 import streamlit as st
 import altair as alt
 
-st.set_page_config(page_title="조례 통계 분석", layout="wide")
+st.set_page_config(page_title="조례 통계 분석", layout="wide", initial_sidebar_state="collapsed")
+
+# CSS: 사이드바 완전 제거 + 메인 영역 확장 + 탭 강조
+st.markdown("""
+    <style>
+    /* 사이드바 완전 제거 */
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+    
+    /* 메인 영역 전체 너비 사용 */
+    .main .block-container {
+        max-width: 100%;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+    
+    /* 탭 스타일 강조 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #f0f2f6;
+        padding: 10px;
+        border-radius: 10px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        height: 60px;
+        padding: 0px 24px;
+        background-color: white;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        border: 2px solid #e0e0e0;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background-color: #1f77b4;
+        color: white;
+        border: 2px solid #1f77b4;
+    }
+    
+    /* 데이터 요약 메트릭 스타일 */
+    [data-testid="stMetricValue"] {
+        font-size: 28px;
+        font-weight: bold;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        font-size: 14px;
+        font-weight: 600;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # -----------------------------
 # 데이터 로드 (GitHub data 폴더에서)
@@ -25,6 +77,23 @@ def load_excel(path):
 # 헤더
 # -----------------------------
 st.title("📊 지방자치단체 조례 통계 분석 대시보드")
+
+# 데이터 요약 (메인 상단에 가로 배치)
+st.markdown("### 📈 데이터 요약")
+col1, col2, col3, col4, col5, col6 = st.columns(6)
+with col1:
+    st.metric("총 조례 수", f"{총_조례수:,}")
+with col2:
+    st.metric("광역자치단체", f"{광역_unique}개")
+with col3:
+    st.metric("기초자치단체", f"{기초_unique}개")
+with col4:
+    st.metric("조례 분야", f"{분야_unique}개")
+with col5:
+    st.metric("지방의회 기수", 기수_range)
+with col6:
+    st.metric("데이터 출처", "한국")
+
 st.markdown("---")
 
 # 데이터 로드
@@ -80,21 +149,12 @@ df["is_광역자체"] = df["광역"] == df["기초"]
 # 기초_full 생성 (광역+기초 조합으로 고유 식별)
 df["기초_full"] = df["광역"] + " " + df["기초"]
 
-# -----------------------------
-# 사이드바 - 데이터 요약
-# -----------------------------
-with st.sidebar:
-    st.header("📊 데이터 요약")
-    st.metric("총 조례 수", f"{len(df):,}")
-    st.metric("광역자치단체", len(광역_list))
-    # 광역+기초 조합으로 고유 개수 계산
-    기초_unique = df[~df["is_광역자체"]][['광역', '기초']].drop_duplicates().shape[0]
-    st.metric("기초자치단체", 기초_unique)
-    st.metric("조례 분야", len(분야_list))
-    st.metric("지방의회 기수", f"{기수_list[0]} ~ {기수_list[-1]}")
-    
-    st.markdown("---")
-    st.info("💡 각 탭의 표를 확인하고 CSV로 다운로드할 수 있습니다.")
+# 고유값 추출 (데이터 요약용)
+광역_unique = len(광역_list)
+기초_unique = df[~df["is_광역자체"]][['광역', '기초']].drop_duplicates().shape[0]
+분야_unique = len(분야_list)
+기수_range = f"{기수_list[0]} ~ {기수_list[-1]}"
+총_조례수 = len(df)
 
 # -----------------------------
 # 유틸리티 함수
