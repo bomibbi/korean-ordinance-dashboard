@@ -145,6 +145,10 @@ with tab1:
             
             # 건수와 비율 결합 표시
             display_df = pd.DataFrame(index=pivot.index)
+            
+            # 합계 컬럼을 맨 앞에 추가
+            display_df['합계'] = [f"{int(row_sums[idx])}건" for idx in pivot.index]
+            
             for col in pivot.columns:
                 display_df[col] = [
                     f"{int(pivot.loc[idx, col])}건 ({pivot.loc[idx, col]/row_sums[idx]*100:.2f}%)" 
@@ -152,12 +156,17 @@ with tab1:
                     for idx in pivot.index
                 ]
             
-            # 각 행의 합계
-            display_df['합계'] = [f"{int(row_sums[idx])}건" for idx in pivot.index]
-            # ▶ 합계 맨 앞으로 이동
-            display_df = display_df[['합계'] + [c for c in display_df.columns if c != '합계']]
+            # N개 평균 행 추가 (실제 광역 개수)
+            광역_개수 = len(pivot.index)
+            avg_counts = pivot.mean(axis=0)
+            avg_row = {'합계': f"{int(row_sums.mean())}건"}
+            for col in pivot.columns:
+                avg_val = avg_counts[col]
+                avg_pct = (avg_val / avg_counts.sum() * 100) if avg_counts.sum() > 0 else 0
+                avg_row[col] = f"{avg_val:.1f}건 ({avg_pct:.2f}%)"
+            display_df.loc[f'{광역_개수}개 평균'] = avg_row
             
-            # 표시 (인덱스/라벨 원형 유지)
+            # 표시
             st.dataframe(display_df, use_container_width=True, height=600)
             
             # 히트맵 (비율만, 평균 제외)
@@ -205,26 +214,28 @@ with tab2:
             # 비율 계산
             row_sums = pivot.sum(axis=1)
             pivot_pct = pivot.div(row_sums, axis=0) * 100
+            
+            # 증가율 계산 (이전 기수 대비)
             pivot_growth = pivot_pct.diff()
             
-            # 결합 테이블 (건수, 비율, 증가율) — 평균증가율 컬럼 제거
+            # 결합 테이블 (건수, 비율, 증가율) - 평균증가율 제거
             result_rows = []
             for idx, 기수 in enumerate(pivot_pct.index):
-                row_data = {'기수': 기수}
+                row_data = {'기수': 기수, '합계': f"{int(row_sums.loc[기수])}건"}
+                
                 for 분야 in pivot_pct.columns:
                     건수 = int(pivot.loc[기수, 분야])
                     비율 = pivot_pct.loc[기수, 분야]
+                    
                     if idx > 0:
                         증가율 = pivot_growth.loc[기수, 분야]
                         row_data[분야] = f"{건수}건 ({비율:.2f}%, {증가율:+.2f}%p)"
                     else:
                         row_data[분야] = f"{건수}건 ({비율:.2f}%)"
-                row_data['합계'] = f"{int(row_sums.loc[기수])}건"
+                
                 result_rows.append(row_data)
             
             result_df = pd.DataFrame(result_rows).set_index('기수')
-            # ▶ 합계 맨 앞으로 이동
-            result_df = result_df[['합계'] + [c for c in result_df.columns if c != '합계']]
             
             st.dataframe(result_df, use_container_width=True, height=400)
             
@@ -287,6 +298,9 @@ with tab3:
             row_sums = pivot.sum(axis=1)
             display_df = pd.DataFrame(index=pivot.index)
             
+            # 합계 컬럼을 맨 앞에 추가
+            display_df['합계'] = [f"{int(row_sums[idx])}건" for idx in pivot.index]
+            
             for col in pivot.columns:
                 display_df[col] = [
                     f"{int(pivot.loc[idx, col])}건 ({pivot.loc[idx, col]/row_sums[idx]*100:.2f}%)"
@@ -294,9 +308,16 @@ with tab3:
                     for idx in pivot.index
                 ]
             
-            display_df['합계'] = [f"{int(row_sums[idx])}건" for idx in pivot.index]
-            # ▶ 합계 맨 앞으로 이동
-            display_df = display_df[['합계'] + [c for c in display_df.columns if c != '합계']]
+            # 226개 평균 행 추가
+            평균_row = {'합계': f"{전국_기초_pivot.sum(axis=1).mean():.1f}건"}
+            for col in 분야_list:
+                if col in 전국_평균_건수.index:
+                    avg_건수 = 전국_평균_건수[col]
+                    avg_비율 = 전국_평균_비율[col]
+                    평균_row[col] = f"{avg_건수:.1f}건 ({avg_비율:.2f}%)"
+                else:
+                    평균_row[col] = "0건 (0%)"
+            display_df.loc['226개 평균'] = 평균_row
             
             st.dataframe(display_df, use_container_width=True, height=600)
             
@@ -345,14 +366,15 @@ with tab4:
     
     # 표시용 데이터프레임 (건수와 비율)
     display_df = pd.DataFrame(index=전국_pivot.index)
+    
+    # 합계 컬럼을 맨 앞에 추가
+    display_df['합계'] = [f"{int(전국_row_sums[idx])}건" for idx in 전국_pivot.index]
+    
     for col in 전국_pivot.columns:
         display_df[col] = [
             f"{int(전국_pivot.loc[idx, col])}건 ({전국_비율.loc[idx, col]:.2f}%)"
             for idx in 전국_pivot.index
         ]
-    display_df['합계'] = [f"{int(전국_row_sums[idx])}건" for idx in 전국_pivot.index]
-    # ▶ 합계 맨 앞으로 이동
-    display_df = display_df[['합계'] + [c for c in display_df.columns if c != '합계']]
     
     st.dataframe(display_df, use_container_width=True, height=400)
     
@@ -424,7 +446,7 @@ with tab5:
     
     with col1:
         st.subheader("광역별 집중도 순위")
-        st.dataframe(집중도_df, use_container_width=True, height=600)
+        st.dataframe(집중도_df.round(2), use_container_width=True, height=600, hide_index=True)
         download_csv(집중도_df, f"광역_분야집중도_{datetime.now().strftime('%Y%m%d')}.csv")
     
     with col2:
@@ -491,7 +513,7 @@ with tab6:
         
         with col1:
             st.markdown("**Top 50**")
-            st.dataframe(기초_조례수.head(50), use_container_width=True, height=600)
+            st.dataframe(기초_조례수.head(50), use_container_width=True, height=600, hide_index=True)
         
         with col2:
             st.markdown("**Top 30 차트**")
@@ -509,7 +531,7 @@ with tab6:
         
         st.markdown("---")
         st.subheader("전체 기초자치단체 순위")
-        st.dataframe(기초_조례수, use_container_width=True, height=400)
+        st.dataframe(기초_조례수, use_container_width=True, height=400, hide_index=True)
         download_csv(기초_조례수, f"기초단체_순위_{datetime.now().strftime('%Y%m%d')}.csv")
     
     with 순위_tab2:
@@ -519,7 +541,7 @@ with tab6:
         
         with col1:
             st.markdown("**전체 순위**")
-            st.dataframe(광역_조례수, use_container_width=True, height=600)
+            st.dataframe(광역_조례수, use_container_width=True, height=600, hide_index=True)
         
         with col2:
             st.markdown("**순위 차트**")
@@ -541,7 +563,7 @@ with tab6:
         
         with col1:
             st.markdown("**Top 50**")
-            st.dataframe(전체_조례수.head(50), use_container_width=True, height=600)
+            st.dataframe(전체_조례수.head(50), use_container_width=True, height=600, hide_index=True)
         
         with col2:
             st.markdown("**Top 30 차트**")
@@ -562,8 +584,26 @@ with tab6:
         
         st.markdown("---")
         st.subheader("전체 순위")
-        st.dataframe(전체_조례수, use_container_width=True, height=400)
+        st.dataframe(전체_조례수, use_container_width=True, height=400, hide_index=True)
         download_csv(전체_조례수, f"전체_순위_{datetime.now().strftime('%Y%m%d')}.csv")
+    
+    # 광역별 평균
+    st.markdown("---")
+    st.subheader("광역별 기초단체 평균 조례 수")
+    광역_평균 = 기초_조례수.groupby('광역')['총조례수'].agg(['mean', 'count']).reset_index()
+    광역_평균.columns = ['광역', '평균조례수', '기초단체수']
+    광역_평균 = 광역_평균.sort_values('평균조례수', ascending=False).round(2)
+    
+    st.dataframe(광역_평균, use_container_width=True)
+    
+    bar_chart2 = alt.Chart(광역_평균).mark_bar().encode(
+        x=alt.X('평균조례수:Q', title='평균 조례 수'),
+        y=alt.Y('광역:N', sort='-x', title=''),
+        color=alt.Color('평균조례수:Q', scale=alt.Scale(scheme='teals'), legend=None),
+        tooltip=['광역', alt.Tooltip('평균조례수:Q', format='.2f'), '기초단체수']
+    ).properties(height=400)
+    
+    st.altair_chart(bar_chart2, use_container_width=True)
 
 st.markdown("---")
 st.caption("© 2025 지방자치단체 조례 통계 분석 대시보드")
