@@ -29,32 +29,44 @@ st.markdown("""
     /* 메인 탭 스타일 - 첫 번째 탭만 */
     section[data-testid="stVerticalBlock"] > div:nth-child(3) [data-baseweb="tab-list"] {
         gap: 10px;
-        padding: 0px;
+        padding: 0px 0px 0px 0px;
         width: 100%;
         display: flex;
         justify-content: space-between;
-        border-bottom: none !important;
+        border-bottom: 2px solid #e0e0e0 !important;
         background: transparent !important;
     }
     
     section[data-testid="stVerticalBlock"] > div:nth-child(3) button[data-baseweb="tab"] {
         flex: 1;
-        height: 70px;
+        height: 60px;
         padding: 0px 24px;
-        background-color: white;
-        border-radius: 8px;
-        font-size: 18px;
-        font-weight: 700;
-        border: 2px solid #e0e0e0 !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        color: #333;
+        background-color: transparent;
+        border-radius: 0px;
+        font-size: 16px;
+        font-weight: 600;
+        border: none !important;
+        box-shadow: none;
+        color: #666;
+        position: relative;
     }
     
     section[data-testid="stVerticalBlock"] > div:nth-child(3) button[aria-selected="true"] {
-        background-color: #1f77b4 !important;
-        color: white !important;
-        border: 2px solid #1f77b4 !important;
-        box-shadow: 0 4px 8px rgba(31,119,180,0.3);
+        background-color: transparent !important;
+        color: #1f77b4 !important;
+        border: none !important;
+        box-shadow: none;
+        border-bottom: 3px solid #1f77b4 !important;
+    }
+    
+    section[data-testid="stVerticalBlock"] > div:nth-child(3) button[aria-selected="true"]::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background-color: #1f77b4;
     }
     
     /* 하위 탭 스타일 */
@@ -183,27 +195,27 @@ st.title("📊 지방자치단체 조례 통계 분석 대시보드")
 # 데이터 요약을 HTML로 직접 렌더링
 st.markdown(f"""
 <div style="background-color: #f0f2f6; padding: 25px 30px; border-radius: 10px; margin: 20px 0 30px 0;">
-    <div style="font-size: 20px; font-weight: 700; margin-bottom: 20px; color: #1f1f1f;">📈 데이터 요약</div>
+    <div style="font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #1f1f1f;">📈 데이터 요약</div>
     <div style="display: flex; justify-content: space-between; gap: 20px;">
         <div style="flex: 1; text-align: center;">
-            <div style="font-size: 14px; font-weight: 600; color: #666; margin-bottom: 8px;">총 조례 수</div>
-            <div style="font-size: 24px; font-weight: bold; color: #1f1f1f;">{이_조례수:,}</div>
+            <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">총 조례 수</div>
+            <div style="font-size: 28px; font-weight: 400; color: #1f1f1f;">{이_조례수:,}</div>
         </div>
         <div style="flex: 1; text-align: center;">
-            <div style="font-size: 14px; font-weight: 600; color: #666; margin-bottom: 8px;">광역자치단체</div>
-            <div style="font-size: 24px; font-weight: bold; color: #1f1f1f;">{광역_unique}개</div>
+            <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">광역자치단체</div>
+            <div style="font-size: 28px; font-weight: 400; color: #1f1f1f;">{광역_unique}개</div>
         </div>
         <div style="flex: 1; text-align: center;">
-            <div style="font-size: 14px; font-weight: 600; color: #666; margin-bottom: 8px;">기초자치단체</div>
-            <div style="font-size: 24px; font-weight: bold; color: #1f1f1f;">{기초_unique}개</div>
+            <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">기초자치단체</div>
+            <div style="font-size: 28px; font-weight: 400; color: #1f1f1f;">{기초_unique}개</div>
         </div>
         <div style="flex: 1; text-align: center;">
-            <div style="font-size: 14px; font-weight: 600; color: #666; margin-bottom: 8px;">조례 분야</div>
-            <div style="font-size: 24px; font-weight: bold; color: #1f1f1f;">{분야_unique}개</div>
+            <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">조례 분야</div>
+            <div style="font-size: 28px; font-weight: 400; color: #1f1f1f;">{분야_unique}개</div>
         </div>
         <div style="flex: 1; text-align: center;">
-            <div style="font-size: 14px; font-weight: 600; color: #666; margin-bottom: 8px;">지방의회 기수</div>
-            <div style="font-size: 24px; font-weight: bold; color: #1f1f1f;">{기수_range}</div>
+            <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">지방의회 기수</div>
+            <div style="font-size: 28px; font-weight: 400; color: #1f1f1f;">{기수_range}</div>
         </div>
     </div>
 </div>
