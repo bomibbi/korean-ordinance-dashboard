@@ -34,8 +34,12 @@ st.markdown("""
         margin-bottom: 30px;
     }
     
-    /* 탭 스타일 - 배경 제거 및 너비 확장 */
-    .stTabs [data-baseweb="tab-list"] {
+    .data-summary-box h3 {
+        margin-top: 0;
+    }
+    
+    /* 메인 탭 스타일 - 배경 제거 및 너비 확장 */
+    .stTabs[data-tabs-root="true"] > [data-baseweb="tab-list"] {
         gap: 8px;
         padding: 10px 0px;
         width: 100%;
@@ -43,7 +47,7 @@ st.markdown("""
         justify-content: space-between;
     }
     
-    .stTabs [data-baseweb="tab"] {
+    .stTabs[data-tabs-root="true"] > [data-baseweb="tab-list"] > [data-baseweb="tab"] {
         flex: 1;
         height: 70px;
         padding: 0px 24px;
@@ -55,11 +59,34 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    .stTabs [aria-selected="true"] {
+    .stTabs[data-tabs-root="true"] > [data-baseweb="tab-list"] > [aria-selected="true"] {
         background-color: #1f77b4;
         color: white;
         border: 2px solid #1f77b4;
         box-shadow: 0 4px 8px rgba(31,119,180,0.3);
+    }
+    
+    /* 하위 탭 스타일 (탭6 내부) */
+    .stTabs:not([data-tabs-root="true"]) [data-baseweb="tab-list"] {
+        gap: 6px;
+        padding: 5px 0px;
+        display: flex;
+    }
+    
+    .stTabs:not([data-tabs-root="true"]) [data-baseweb="tab"] {
+        height: 50px;
+        padding: 0px 20px;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        font-size: 15px;
+        font-weight: 600;
+        border: 1px solid #dee2e6;
+    }
+    
+    .stTabs:not([data-tabs-root="true"]) [aria-selected="true"] {
+        background-color: #5a8fc4;
+        color: white;
+        border: 1px solid #5a8fc4;
     }
     
     /* 선택된 탭 하단 주황색 실선 제거 */
@@ -153,7 +180,7 @@ st.title("📊 지방자치단체 조례 통계 분석 대시보드")
 분야_unique = len(분야_list)
 기수_range = f"{기수_list[0]} ~ {기수_list[-1]}"
 
-# 데이터 요약 박스로 감싸기
+# 데이터 요약 박스로 감싸기 (제목 포함)
 st.markdown('<div class="data-summary-box">', unsafe_allow_html=True)
 st.markdown("### 📈 데이터 요약")
 col1, col2, col3, col4, col5 = st.columns(5)
