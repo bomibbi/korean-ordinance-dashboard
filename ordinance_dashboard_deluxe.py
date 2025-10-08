@@ -49,26 +49,30 @@ if missing:
 # 데이터 정제
 df = df.dropna(subset=required_cols)
 
-# 지방의회_기수 처리 (이미 숫자인 경우와 "N기" 형태 모두 처리)
-def clean_term(x):
-    if pd.isna(x):
-        return None
-    if isinstance(x, (int, float)):
-        return int(x)
-    x_str = str(x).strip().replace("기", "").replace(" ", "")
-    try:
-        return int(x_str)
-    except:
-        return None
+# 지방의회_기수 정리 (문자열 그대로 유지, 정렬용 숫자 컬럼 추가)
+df["지방의회_기수"] = df["지방의회_기수"].astype(str).str.strip()
 
-df["지방의회_기수"] = df["지방의회_기수"].apply(clean_term)
-df = df.dropna(subset=["지방의회_기수"])
-df["지방의회_기수"] = df["지방의회_기수"].astype(int)
+# 정렬을 위한 숫자 컬럼 생성
+def extract_number(x):
+    if "분류불가" in x:
+        return 0  # 정렬 시 맨 앞에 오도록
+    try:
+        import re
+        match = re.search(r'\d+', x)
+        return int(match.group()) if match else 999
+    except:
+        return 999
+
+df["_기수_정렬용"] = df["지방의회_기수"].apply(extract_number)
 
 # 고유값 추출 (사이드바 사용 전에 미리 정의)
 광역_list = sorted(df["광역"].dropna().unique().tolist())
 분야_list = sorted(df["최종분야"].dropna().unique().tolist())
-기수_list = sorted(df["지방의회_기수"].unique().tolist())
+
+# 기수 리스트 정렬 (분류불가 → 1기 → 2기 → ... → 9기)
+기수_unique = df[["지방의회_기수", "_기수_정렬용"]].drop_duplicates()
+기수_unique = 기수_unique.sort_values("_기수_정렬용")
+기수_list = 기수_unique["지방의회_기수"].tolist()
 
 # -----------------------------
 # 사이드바 - 데이터 요약
@@ -80,7 +84,7 @@ with st.sidebar:
     st.metric("광역자치단체", len(광역_list))
     st.metric("기초자치단체", df["기초"].nunique())
     st.metric("조례 분야", len(분야_list))
-    st.metric("지방의회 기수", f"{min(기수_list)}기~{max(기수_list)}기")
+    st.metric("지방의회 기수", f"{기수_list[0]}~{기수_list[-1]}")
     
     st.markdown("---")
     st.info("💡 각 탭의 표를 확인하고 CSV로 다운로드할 수 있습니다.")
