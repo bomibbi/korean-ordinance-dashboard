@@ -357,9 +357,17 @@ with tab3:
                 st.altair_chart(chart, use_container_width=True)
             
             # CSV 다운로드
-            download_df = 기초_pivot.copy()
-            download_df.loc[f'[{광역}]'] = 광역_자체_pivot.reindex(기초_pivot.columns, fill_value=0)
-            download_csv(download_df, f"기초단체_현황_{광역}_{datetime.now().strftime('%Y%m%d')}.csv")
+            download_df = 기초_pivot.copy() if not 기초_pivot.empty else pd.DataFrame()
+            
+            # 광역 자체 행 추가
+            if not 광역_자체_pivot.empty:
+                if download_df.empty:
+                    download_df = pd.DataFrame(columns=분야_list)
+                광역_자체_row = 광역_자체_pivot.reindex(download_df.columns, fill_value=0)
+                download_df.loc[f'[{광역}]'] = 광역_자체_row
+            
+            if not download_df.empty:
+                download_csv(download_df, f"기초단체_현황_{광역}_{datetime.now().strftime('%Y%m%d')}.csv")
 
 # -----------------------------
 # 탭4: 전체 기수별 분야 변화 추이
