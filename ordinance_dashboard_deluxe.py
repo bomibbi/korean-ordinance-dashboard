@@ -26,35 +26,18 @@ st.markdown("""
         padding-right: 2rem;
     }
     
-    /* 데이터 요약 박스 스타일 */
-    .data-summary-box {
-        background-color: #f0f2f6;
-        padding: 25px 30px;
-        border-radius: 10px;
-        margin-bottom: 30px;
-        margin-top: 20px;
-    }
-    
-    /* 데이터 요약 제목 스타일 */
-    .data-summary-title {
-        font-size: 20px;
-        font-weight: 700;
-        margin-bottom: 15px;
-        color: #1f1f1f;
-    }
-    
-    /* 메인 탭 컨테이너 - 최상위 탭만 선택 */
-    div[data-baseweb="tab-list"]:not(.sub-tabs) {
+    /* 메인 탭 스타일 - 첫 번째 탭만 */
+    section[data-testid="stVerticalBlock"] > div:nth-child(3) [data-baseweb="tab-list"] {
         gap: 10px;
         padding: 0px;
         width: 100%;
         display: flex;
         justify-content: space-between;
         border-bottom: none !important;
+        background: transparent !important;
     }
     
-    /* 메인 탭 버튼 스타일 */
-    div[data-baseweb="tab-list"]:not(.sub-tabs) > button[data-baseweb="tab"] {
+    section[data-testid="stVerticalBlock"] > div:nth-child(3) button[data-baseweb="tab"] {
         flex: 1;
         height: 70px;
         padding: 0px 24px;
@@ -67,16 +50,15 @@ st.markdown("""
         color: #333;
     }
     
-    /* 메인 탭 선택시 스타일 */
-    div[data-baseweb="tab-list"]:not(.sub-tabs) > button[aria-selected="true"] {
+    section[data-testid="stVerticalBlock"] > div:nth-child(3) button[aria-selected="true"] {
         background-color: #1f77b4 !important;
         color: white !important;
         border: 2px solid #1f77b4 !important;
         box-shadow: 0 4px 8px rgba(31,119,180,0.3);
     }
     
-    /* 하위 탭 스타일 마커 추가 */
-    .element-container:has(div[data-baseweb="tab-list"]) ~ div div[data-baseweb="tab-list"] {
+    /* 하위 탭 스타일 */
+    [data-baseweb="tab-panel"] [data-baseweb="tab-list"] {
         gap: 8px;
         padding: 10px 0px;
         display: flex;
@@ -84,8 +66,7 @@ st.markdown("""
         background-color: transparent !important;
     }
     
-    /* 하위 탭 버튼 스타일 */
-    .element-container:has(div[data-baseweb="tab-list"]) ~ div button[data-baseweb="tab"] {
+    [data-baseweb="tab-panel"] button[data-baseweb="tab"] {
         height: 45px;
         padding: 8px 20px;
         background-color: #f8f9fa;
@@ -95,29 +76,21 @@ st.markdown("""
         border: 1px solid #dee2e6 !important;
         color: #495057;
         box-shadow: none;
+        flex: 0 0 auto;
     }
     
-    /* 하위 탭 선택시 스타일 */
-    .element-container:has(div[data-baseweb="tab-list"]) ~ div button[aria-selected="true"] {
+    [data-baseweb="tab-panel"] button[aria-selected="true"] {
         background-color: #495057 !important;
         color: white !important;
         border: 1px solid #495057 !important;
     }
     
-    /* 모든 탭 하이라이트 제거 */
-    div[data-baseweb="tab-highlight"] {
+    /* 모든 탭 하이라이트 및 보더 제거 */
+    [data-baseweb="tab-highlight"] {
         display: none !important;
-        height: 0 !important;
     }
     
-    /* 탭 패널 경계선 제거 */
-    div[data-baseweb="tab-panel"] {
-        padding-top: 20px;
-        border-top: none !important;
-    }
-    
-    /* 탭 보더 제거 */
-    div[data-baseweb="tab-border"] {
+    [data-baseweb="tab-border"] {
         display: none !important;
     }
     
@@ -207,25 +180,34 @@ st.title("📊 지방자치단체 조례 통계 분석 대시보드")
 분야_unique = len(분야_list)
 기수_range = f"{기수_list[0]} ~ {기수_list[-1]}"
 
-# 데이터 요약을 컨테이너로 감싸고 CSS 클래스 적용
-summary_container = st.container()
-with summary_container:
-    st.markdown('<div style="background-color: #f0f2f6; padding: 25px 30px; border-radius: 10px; margin-bottom: 30px; margin-top: 20px;">', unsafe_allow_html=True)
-    st.markdown('<div style="font-size: 20px; font-weight: 700; margin-bottom: 15px; color: #1f1f1f;">📈 데이터 요약</div>', unsafe_allow_html=True)
-    
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        st.metric("총 조례 수", f"{이_조례수:,}")
-    with col2:
-        st.metric("광역자치단체", f"{광역_unique}개")
-    with col3:
-        st.metric("기초자치단체", f"{기초_unique}개")
-    with col4:
-        st.metric("조례 분야", f"{분야_unique}개")
-    with col5:
-        st.metric("지방의회 기수", 기수_range)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+# 데이터 요약을 HTML로 직접 렌더링
+st.markdown(f"""
+<div style="background-color: #f0f2f6; padding: 25px 30px; border-radius: 10px; margin: 20px 0 30px 0;">
+    <div style="font-size: 20px; font-weight: 700; margin-bottom: 20px; color: #1f1f1f;">📈 데이터 요약</div>
+    <div style="display: flex; justify-content: space-between; gap: 20px;">
+        <div style="flex: 1; text-align: center;">
+            <div style="font-size: 14px; font-weight: 600; color: #666; margin-bottom: 8px;">총 조례 수</div>
+            <div style="font-size: 24px; font-weight: bold; color: #1f1f1f;">{이_조례수:,}</div>
+        </div>
+        <div style="flex: 1; text-align: center;">
+            <div style="font-size: 14px; font-weight: 600; color: #666; margin-bottom: 8px;">광역자치단체</div>
+            <div style="font-size: 24px; font-weight: bold; color: #1f1f1f;">{광역_unique}개</div>
+        </div>
+        <div style="flex: 1; text-align: center;">
+            <div style="font-size: 14px; font-weight: 600; color: #666; margin-bottom: 8px;">기초자치단체</div>
+            <div style="font-size: 24px; font-weight: bold; color: #1f1f1f;">{기초_unique}개</div>
+        </div>
+        <div style="flex: 1; text-align: center;">
+            <div style="font-size: 14px; font-weight: 600; color: #666; margin-bottom: 8px;">조례 분야</div>
+            <div style="font-size: 24px; font-weight: bold; color: #1f1f1f;">{분야_unique}개</div>
+        </div>
+        <div style="flex: 1; text-align: center;">
+            <div style="font-size: 14px; font-weight: 600; color: #666; margin-bottom: 8px;">지방의회 기수</div>
+            <div style="font-size: 24px; font-weight: bold; color: #1f1f1f;">{기수_range}</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 st.markdown("---")
 
