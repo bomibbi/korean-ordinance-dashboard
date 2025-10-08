@@ -2,7 +2,6 @@
 # 지방자치단체 조례 통계 분석 대시보드
 
 import os
-import io
 from datetime import datetime
 
 import pandas as pd
@@ -13,18 +12,14 @@ import altair as alt
 st.set_page_config(page_title="조례 통계 분석", layout="wide")
 
 # -----------------------------
-# 데이터 로드
+# 데이터 로드 (GitHub data 폴더에서)
 # -----------------------------
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_PATH = os.path.join(APP_DIR, "korean_ordinance.xlsx")
+DATA_PATH = os.path.join(APP_DIR, "data", "korean_ordinance.xlsx")
 
 @st.cache_data(show_spinner=True)
 def load_excel(path):
     return pd.read_excel(path)
-
-@st.cache_data(show_spinner=True)
-def load_excel_bytes(b):
-    return pd.read_excel(io.BytesIO(b))
 
 # -----------------------------
 # 헤더
@@ -32,28 +27,18 @@ def load_excel_bytes(b):
 st.title("📊 지방자치단체 조례 통계 분석 대시보드")
 st.markdown("---")
 
-# 사이드바 - 데이터 업로드
-with st.sidebar:
-    st.header("데이터 업로드")
-    uploaded = st.file_uploader("엑셀 파일 선택 (.xlsx)", type=["xlsx"])
-    
-    if uploaded:
-        df = load_excel_bytes(uploaded.read())
-        st.success(f"✅ {uploaded.name} 로드 완료")
-    elif os.path.exists(DEFAULT_PATH):
-        df = load_excel(DEFAULT_PATH)
-        st.info(f"📁 기본 파일 사용 중")
-    else:
-        st.error("⚠️ 파일을 업로드해주세요")
-        st.stop()
-    
-    st.markdown("---")
-    st.markdown("### 📈 데이터 요약")
-    st.metric("총 조례 수", f"{len(df):,}")
+# 데이터 로드
+if not os.path.exists(DATA_PATH):
+    st.error(f"⚠️ 데이터 파일을 찾을 수 없습니다: {DATA_PATH}")
+    st.info("GitHub의 data 폴더에 korean_ordinance.xlsx 파일을 업로드해주세요.")
+    st.stop()
+
+with st.spinner("📂 데이터 로딩 중..."):
+    df = load_excel(DATA_PATH)
+
+st.success(f"✅ 데이터 로드 완료: {len(df):,}건")
 
 # 컬럼명 확인 및 정규화
-required_cols = ["광역", "기초", "최종분야", "지방의회_기수"]
-# 실제 엑셀의 컬럼명에 맞춰 매핑 (필요시 수정)
 col_mapping = {
     "광역자치단체명": "광역",
     "기초자치단체명": "기초", 
@@ -62,7 +47,7 @@ col_mapping = {
 }
 df = df.rename(columns=col_mapping)
 
-# 필수 컬럼 체크
+required_cols = ["광역", "기초", "최종분야", "지방의회_기수"]
 missing = [c for c in required_cols if c not in df.columns]
 if missing:
     st.error(f"필수 컬럼이 없습니다: {', '.join(missing)}")
@@ -71,25 +56,45 @@ if missing:
 
 # 데이터 정제
 df = df.dropna(subset=required_cols)
-df["지방의회_기수"] = df["지방의회_기수"].astype(str).str.replace("기", "").astype(int)
+
+# 지방의회_기수 처리 (이미 숫자인 경우와 "N기" 형태 모두 처리)
+def clean_term(x):
+    if pd.isna(x):
+        return None
+    if isinstance(x, (int, float)):
+        return int(x)
+    x_str = str(x).strip().replace("기", "").replace(" ", "")
+    try:
+        return int(x_str)
+    except:
+        return None
+
+df["지방의회_기수"] = df["지방의회_기수"].apply(clean_term)
+df = df.dropna(subset=["지방의회_기수"])
+df["지방의회_기수"] = df["지방의회_기수"].astype(int)
 
 # -----------------------------
-# 유틸리티 함수
+# 사이드바 - 데이터 요약
 # -----------------------------
-@st.cache_data
-def get_unique_values(dataframe, column):
-    return sorted(dataframe[column].dropna().unique().tolist())
-
-광역_list = get_unique_values(df, "광역")
-분야_list = get_unique_values(df, "최종분야")
-기수_list = sorted(df["지방의회_기수"].unique().tolist())
-
 with st.sidebar:
+    st.header("📊 데이터 요약")
+    st.metric("총 조례 수", f"{len(df):,}")
+    
+    광역_list = sorted(df["광역"].dropna().unique().tolist())
+    분야_list = sorted(df["최종분야"].dropna().unique().tolist())
+    기수_list = sorted(df["지방의회_기수"].unique().tolist())
+    
     st.metric("광역자치단체", len(광역_list))
     st.metric("기초자치단체", df["기초"].nunique())
     st.metric("조례 분야", len(분야_list))
     st.metric("지방의회 기수", f"{min(기수_list)}기~{max(기수_list)}기")
+    
+    st.markdown("---")
+    st.info("💡 각 탭의 표를 확인하고 CSV로 다운로드할 수 있습니다.")
 
+# -----------------------------
+# 유틸리티 함수
+# -----------------------------
 def create_percentage_table(data, index_cols, value_col, columns_col):
     """비율(%) 테이블 생성"""
     pivot = data.pivot_table(
