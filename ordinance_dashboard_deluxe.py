@@ -35,11 +35,11 @@ st.markdown("""
     }
     
     button[data-baseweb="tab"] {
-        height: 55px;
+        height: 60px;
         padding: 0px 20px;
         background-color: transparent !important;
         border-radius: 0px !important;
-        font-size: 17px !important;
+        font-size: 20px !important;
         font-weight: 600 !important;
         border: none !important;
         border-bottom: 3px solid transparent !important;
@@ -206,8 +206,6 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
-
-st.markdown("---")
 
 # -----------------------------
 # 유틸리티 함수
