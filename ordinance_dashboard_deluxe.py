@@ -164,7 +164,7 @@ st.caption("• 광역 자체 = (기초 == 광역) 규칙 적용 • 탭2는 광
 
 with st.sidebar:
     st.header("데이터 로드")
-    path = st.text_input("CSV 경로", value="korean_ordinance.csv")
+    path = st.text_input("CSV 경로", value="data/korean_ordinance.xlsx")
     df_raw = load_csv_with_encodings(path)
     df = normalize(df_raw)
     st.write(f"- 행 수: **{len(df):,}**")
