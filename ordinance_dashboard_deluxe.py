@@ -150,10 +150,14 @@ with tab1:
             # 건수와 비율 결합 표시
             display_df = pd.DataFrame(index=pivot.index)
             for col in pivot.columns:
-                display_df[col] = pivot[col].apply(lambda x: f"{int(x)}건 ({x/row_sums[pivot[col].name]*100:.2f}%)" if row_sums[pivot[col].name] > 0 else "0건 (0%)")
+                display_df[col] = [
+                    f"{int(pivot.loc[idx, col])}건 ({pivot.loc[idx, col]/row_sums[idx]*100:.2f}%)" 
+                    if row_sums[idx] > 0 else "0건 (0%)"
+                    for idx in pivot.index
+                ]
             
             # 각 행의 합계
-            display_df['합계'] = row_sums.astype(int).astype(str) + '건'
+            display_df['합계'] = [f"{int(row_sums[idx])}건" for idx in pivot.index]
             
             # 17개 평균 행 추가
             avg_counts = pivot.mean(axis=0)
