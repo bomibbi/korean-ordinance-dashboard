@@ -77,6 +77,9 @@ df["_기수_정렬용"] = df["지방의회_기수"].apply(extract_number)
 # 광역 자체 / 기초 구분
 df["is_광역자체"] = df["광역"] == df["기초"]
 
+# 기초_full 생성 (광역+기초 조합으로 고유 식별)
+df["기초_full"] = df["광역"] + " " + df["기초"]
+
 # -----------------------------
 # 사이드바 - 데이터 요약
 # -----------------------------
@@ -84,7 +87,8 @@ with st.sidebar:
     st.header("📊 데이터 요약")
     st.metric("총 조례 수", f"{len(df):,}")
     st.metric("광역자치단체", len(광역_list))
-    기초_unique = df[~df["is_광역자체"]]["기초"].nunique()
+    # 광역+기초 조합으로 고유 개수 계산
+    기초_unique = df[~df["is_광역자체"]][['광역', '기초']].drop_duplicates().shape[0]
     st.metric("기초자치단체", 기초_unique)
     st.metric("조례 분야", len(분야_list))
     st.metric("지방의회 기수", f"{기수_list[0]} ~ {기수_list[-1]}")
@@ -403,10 +407,10 @@ with tab4:
     download_csv(download_df, f"전국_기수별_분야변화_{datetime.now().strftime('%Y%m%d')}.csv")
 
 # -----------------------------
-# 탭5: 광역 간 분야 집중도 비교
+# 탭5: 분야 집중도 비교 (기초자치단체 기준)
 # -----------------------------
 with tab5:
-    st.header("5️⃣ 광역자치단체 간 분야 집중도 비교")
+    st.header("5️⃣ 기초자치단체 간 분야 집중도 비교")
     st.caption("""
     **집중도 해석:**
     - 집중도(표준편차)가 **높을수록**: 특정 분야에 조례가 집중되어 있음 (분야 간 불균등)
@@ -415,64 +419,67 @@ with tab5:
     예: 집중도 1위 지역은 특정 분야(예: 복지)에만 조례가 많고, 다른 분야는 상대적으로 적음
     """)
     
-    # 광역×분야 피벗 (광역별 전체)
-    광역_분야_pivot = df.pivot_table(
-        index="광역",
-        columns="최종분야",
+    # 기초×분야 피벗 (광역+기초 조합으로 식별)
+    기초_분야_pivot = df[~df["is_광역자체"]].pivot_table(
+        index='기초_full',
+        columns='최종분야',
         aggfunc='size',
         fill_value=0
     )
     
-    광역_비율 = 광역_분야_pivot.div(광역_분야_pivot.sum(axis=1), axis=0) * 100
+    기초_비율 = 기초_분야_pivot.div(기초_분야_pivot.sum(axis=1), axis=0) * 100
     
     # 집중도 계산 (표준편차)
-    집중도 = 광역_비율.std(axis=1).sort_values(ascending=False)
+    집중도 = 기초_비율.std(axis=1).sort_values(ascending=False)
     
     # 최대 집중 분야 찾기
     최대_분야 = []
-    for 광역 in 집중도.index:
-        max_col = 광역_비율.loc[광역].idxmax()
-        max_val = 광역_비율.loc[광역, max_col]
+    for 기초_full in 집중도.index:
+        max_col = 기초_비율.loc[기초_full].idxmax()
+        max_val = 기초_비율.loc[기초_full, max_col]
         최대_분야.append(f"{max_col} ({max_val:.1f}%)")
     
     집중도_df = pd.DataFrame({
-        '광역': 집중도.index,
+        '기초자치단체': 집중도.index,
         '집중도(표준편차)': 집중도.values,
         '집중 분야': 최대_분야,
-        '총조례수': 광역_분야_pivot.sum(axis=1).loc[집중도.index].values
+        '총조례수': 기초_분야_pivot.sum(axis=1).loc[집중도.index].values
     }).reset_index(drop=True)
     
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        st.subheader("광역별 집중도 순위")
+        st.subheader("기초단체별 집중도 순위")
         st.dataframe(집중도_df.round(2), use_container_width=True, height=600, hide_index=True)
-        download_csv(집중도_df, f"광역_분야집중도_{datetime.now().strftime('%Y%m%d')}.csv")
+        download_csv(집중도_df, f"기초_분야집중도_{datetime.now().strftime('%Y%m%d')}.csv")
     
     with col2:
-        st.subheader("집중도 막대 차트")
-        bar_chart = alt.Chart(집중도_df).mark_bar().encode(
+        st.subheader("집중도 막대 차트 (Top 30)")
+        top30_집중도 = 집중도_df.head(30)
+        bar_chart = alt.Chart(top30_집중도).mark_bar().encode(
             x=alt.X('집중도(표준편차):Q', title='집중도 (표준편차)'),
-            y=alt.Y('광역:N', sort='-x', title=''),
+            y=alt.Y('기초자치단체:N', sort='-x', title=''),
             color=alt.Color('집중도(표준편차):Q', scale=alt.Scale(scheme='oranges'), legend=None),
-            tooltip=['광역', alt.Tooltip('집중도(표준편차):Q', format='.2f'), '집중 분야', '총조례수']
+            tooltip=['기초자치단체', alt.Tooltip('집중도(표준편차):Q', format='.2f'), '집중 분야', '총조례수']
         ).properties(height=600)
         
         st.altair_chart(bar_chart, use_container_width=True)
     
     st.markdown("---")
-    st.subheader("광역별 분야 비율 히트맵")
+    st.subheader("기초단체별 분야 비율 히트맵 (Top 50)")
     
-    heatmap_data = 광역_비율.reset_index().melt(id_vars='광역', var_name='분야', value_name='비율')
+    # Top 50만 히트맵 표시
+    top50_기초 = 집중도.head(50).index
+    heatmap_data = 기초_비율.loc[top50_기초].reset_index().melt(id_vars='기초_full', var_name='분야', value_name='비율')
     
     heatmap = alt.Chart(heatmap_data).mark_rect().encode(
         x=alt.X('분야:N', title=''),
-        y=alt.Y('광역:N', title='', sort=집중도.index.tolist()),
+        y=alt.Y('기초_full:N', title='', sort=top50_기초.tolist()),
         color=alt.Color('비율:Q', scale=alt.Scale(scheme='viridis'), title='비율(%)'),
-        tooltip=['광역', '분야', alt.Tooltip('비율:Q', format='.2f')]
+        tooltip=['기초_full', '분야', alt.Tooltip('비율:Q', format='.2f')]
     ).properties(
-        title='광역별 분야 비율 전체 비교',
-        height=500
+        title='기초단체별 분야 비율 전체 비교 (집중도 Top 50)',
+        height=800
     )
     
     st.altair_chart(heatmap, use_container_width=True)
