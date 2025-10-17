@@ -233,149 +233,138 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 ])
 
 # -----------------------------
-# 탭1: 기수별 광역 조례 분야 분석
+# 탭1: 기수별 광역 조례 분야 분석 (SELECTBOX로 변경)
 # -----------------------------
 with tab1:
     st.header("1️⃣ 기수별 광역자치단체 조례 분야 분석")
     st.caption("각 기수별로 광역자치단체의 조례 분야 비율과 건수를 보여줍니다")
     
-    for 기수 in 기수_list:
-        with st.expander(f"📊 {기수} 분석", expanded=(기수==기수_list[-1])):
-            기수_df = df[df["지방의회_기수"] == 기수]
+    # Selectbox로 기수 선택
+    선택_기수 = st.selectbox("📌 기수 선택", 기수_list, index=len(기수_list)-1, key="tab1_select")
+    
+    기수_df = df[df["지방의회_기수"] == 선택_기수]
+    
+    if len(기수_df) == 0:
+        st.warning(f"{선택_기수} 데이터가 없습니다")
+    else:
+        # 피벗 테이블 생성 (광역별 전체 조례)
+        pivot = 기수_df.pivot_table(
+            index="광역",
+            columns="최종분야",
+            aggfunc='size',
+            fill_value=0
+        )
+        
+        # 합계(건) 계산
+        row_sums = pivot.sum(axis=1)
+        
+        # 건수와 비율을 별도 컬럼으로 분리
+        display_df = pd.DataFrame(index=pivot.index)
+        
+        # 합계 컬럼
+        display_df['합계'] = row_sums.astype(int)
+        
+        # 각 분야별로 건수와 비율을 별도 컬럼으로
+        for col in pivot.columns:
+            display_df[f'{col}_건수'] = pivot[col].astype(int)
+            display_df[f'{col}_%'] = (pivot[col] / row_sums * 100).round(2)
+        
+        # N개 평균 행 추가
+        광역_개수 = len(pivot.index)
+        avg_counts = pivot.mean(axis=0)
+        avg_row = {'합계': int(row_sums.mean())}
+        for col in pivot.columns:
+            avg_row[f'{col}_건수'] = round(avg_counts[col], 1)
+            avg_pct = (avg_counts[col] / avg_counts.sum() * 100) if avg_counts.sum() > 0 else 0
+            avg_row[f'{col}_%'] = round(avg_pct, 2)
+        display_df.loc[f'{광역_개수}개 평균'] = avg_row
+        
+        # 표시
+        st.dataframe(display_df, use_container_width=True, height=600)
+        
+        # 히트맵 (비율만, 평균 제외)
+        pivot_pct = pivot.div(row_sums, axis=0) * 100
+        heatmap_data = pivot_pct
+        if not heatmap_data.empty:
+            chart_data = heatmap_data.reset_index().melt(id_vars='광역', var_name='분야', value_name='비율')
             
-            if len(기수_df) == 0:
-                st.warning(f"{기수} 데이터가 없습니다")
-                continue
-            
-            # 피벗 테이블 생성 (광역별 전체 조례)
-            pivot = 기수_df.pivot_table(
-                index="광역",
-                columns="최종분야",
-                aggfunc='size',
-                fill_value=0
+            chart = alt.Chart(chart_data).mark_rect().encode(
+                x=alt.X('분야:N', title=''),
+                y=alt.Y('광역:N', title=''),
+                color=alt.Color('비율:Q', scale=alt.Scale(scheme='blues'), title='비율(%)'),
+                tooltip=['광역', '분야', alt.Tooltip('비율:Q', format='.2f')]
+            ).properties(
+                title=f'{선택_기수} 광역별 분야 비율 히트맵',
+                height=400
             )
             
-            # 합계(건) 계산
-            row_sums = pivot.sum(axis=1)
-            
-            # 건수와 비율 결합 표시
-            display_df = pd.DataFrame(index=pivot.index)
-            
-            # 합계 컬럼을 맨 앞에 추가
-            display_df['합계'] = [f"{int(row_sums[idx])}건" for idx in pivot.index]
-            
-            for col in pivot.columns:
-                display_df[col] = [
-                    f"{int(pivot.loc[idx, col])}건 ({pivot.loc[idx, col]/row_sums[idx]*100:.2f}%)" 
-                    if row_sums[idx] > 0 else "0건 (0%)"
-                    for idx in pivot.index
-                ]
-            
-            # N개 평균 행 추가 (실제 광역 개수)
-            광역_개수 = len(pivot.index)
-            avg_counts = pivot.mean(axis=0)
-            avg_row = {'합계': f"{int(row_sums.mean())}건"}
-            for col in pivot.columns:
-                avg_val = avg_counts[col]
-                avg_pct = (avg_val / avg_counts.sum() * 100) if avg_counts.sum() > 0 else 0
-                avg_row[col] = f"{avg_val:.1f}건 ({avg_pct:.2f}%)"
-            display_df.loc[f'{광역_개수}개 평균'] = avg_row
-            
-            # 표시
-            st.dataframe(display_df, use_container_width=True, height=600)
-            
-            # 히트맵 (비율만, 평균 제외)
-            pivot_pct = pivot.div(row_sums, axis=0) * 100
-            heatmap_data = pivot_pct
-            if not heatmap_data.empty:
-                chart_data = heatmap_data.reset_index().melt(id_vars='광역', var_name='분야', value_name='비율')
-                
-                chart = alt.Chart(chart_data).mark_rect().encode(
-                    x=alt.X('분야:N', title=''),
-                    y=alt.Y('광역:N', title=''),
-                    color=alt.Color('비율:Q', scale=alt.Scale(scheme='blues'), title='비율(%)'),
-                    tooltip=['광역', '분야', alt.Tooltip('비율:Q', format='.2f')]
-                ).properties(
-                    title=f'{기수} 광역별 분야 비율 히트맵',
-                    height=400
-                )
-                
-                st.altair_chart(chart, use_container_width=True)
-            
-            # CSV 다운로드 (건수 테이블)
-            download_df = pivot.copy()
-            download_df['합계'] = row_sums
-            download_csv(download_df, f"기수별_광역분석_{기수.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.csv")
+            st.altair_chart(chart, use_container_width=True)
+        
+        # CSV 다운로드 (건수 테이블)
+        download_df = pivot.copy()
+        download_df['합계'] = row_sums
+        download_csv(download_df, f"기수별_광역분석_{선택_기수.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.csv")
 
 # -----------------------------
-# 탭2: 광역별 기수당 조례 분야 변화
+# 탭2: 광역별 기수당 조례 분야 변화 (SELECTBOX로 변경)
 # -----------------------------
 with tab2:
     st.header("2️⃣ 광역자치단체별 기수당 조례 분야 변화")
     st.caption("각 광역자치단체별로 기수에 따른 분야 비율 및 증가율을 보여줍니다 (광역 자체 + 소속 기초 전체 포함)")
     
-    for 광역 in 광역_list:
-        with st.expander(f"📊 {광역} 분석"):
-            광역_df = df[df["광역"] == 광역]
-            
-            # 피벗 테이블 (해당 광역의 모든 조례)
-            pivot = 광역_df.pivot_table(
-                index="지방의회_기수",
-                columns="최종분야",
-                aggfunc='size',
-                fill_value=0
-            )
-            
-            # 비율 계산
-            row_sums = pivot.sum(axis=1)
-            pivot_pct = pivot.div(row_sums, axis=0) * 100
-            
-            # 증가율 계산 (이전 기수 대비)
-            pivot_growth = pivot_pct.diff()
-            
-            # 결합 테이블 (건수, 비율, 증가율) - 평균증가율 제거
-            result_rows = []
-            for idx, 기수 in enumerate(pivot_pct.index):
-                row_data = {'기수': 기수, '합계': f"{int(row_sums.loc[기수])}건"}
-                
-                for 분야 in pivot_pct.columns:
-                    건수 = int(pivot.loc[기수, 분야])
-                    비율 = pivot_pct.loc[기수, 분야]
-                    
-                    if idx > 0:
-                        증가율 = pivot_growth.loc[기수, 분야]
-                        row_data[분야] = f"{건수}건 ({비율:.2f}%, {증가율:+.2f}%p)"
-                    else:
-                        row_data[분야] = f"{건수}건 ({비율:.2f}%)"
-                
-                result_rows.append(row_data)
-            
-            result_df = pd.DataFrame(result_rows).set_index('기수')
-            
-            st.dataframe(result_df, use_container_width=True, height=400)
-            
-            # 라인 차트 (Y축: 조례 수)
-            chart_data = pivot.reset_index().melt(id_vars='지방의회_기수', var_name='분야', value_name='조례수')
-            
-            line_chart = alt.Chart(chart_data).mark_line(point=True).encode(
-                x=alt.X('지방의회_기수:N', title='지방의회 기수', sort=기수_list),
-                y=alt.Y('조례수:Q', title='조례 수 (건)'),
-                color=alt.Color('분야:N', title='분야'),
-                tooltip=['지방의회_기수', '분야', '조례수']
-            ).properties(
-                title=f'{광역} 기수별 분야 조례 수 변화',
-                height=400
-            )
-            
-            st.altair_chart(line_chart, use_container_width=True)
-            
-            # CSV 다운로드
-            download_df = pivot.copy()
-            download_df['합계'] = row_sums
-            download_csv(download_df, f"광역별_기수변화_{광역}_{datetime.now().strftime('%Y%m%d')}.csv")
+    # Selectbox로 광역 선택
+    선택_광역 = st.selectbox("📌 광역 선택", 광역_list, key="tab2_select")
+    
+    광역_df = df[df["광역"] == 선택_광역]
+    
+    # 피벗 테이블 (해당 광역의 모든 조례)
+    pivot = 광역_df.pivot_table(
+        index="지방의회_기수",
+        columns="최종분야",
+        aggfunc='size',
+        fill_value=0
+    )
+    
+    # 비율 계산
+    row_sums = pivot.sum(axis=1)
+    pivot_pct = pivot.div(row_sums, axis=0) * 100
+    
+    # 증가율 계산 (이전 기수 대비)
+    pivot_growth = pivot_pct.diff()
+    
+    # 건수, 비율, 증가율을 별도 컬럼으로 분리
+    result_df = pd.DataFrame(index=pivot.index)
+    result_df['합계'] = row_sums.astype(int)
+    
+    for 분야 in pivot.columns:
+        result_df[f'{분야}_건수'] = pivot[분야].astype(int)
+        result_df[f'{분야}_%'] = pivot_pct[분야].round(2)
+        result_df[f'{분야}_%p'] = pivot_growth[분야].round(2)
+    
+    st.dataframe(result_df, use_container_width=True, height=400)
+    
+    # 라인 차트 (Y축: 조례 수)
+    chart_data = pivot.reset_index().melt(id_vars='지방의회_기수', var_name='분야', value_name='조례수')
+    
+    line_chart = alt.Chart(chart_data).mark_line(point=True).encode(
+        x=alt.X('지방의회_기수:N', title='지방의회 기수', sort=기수_list),
+        y=alt.Y('조례수:Q', title='조례 수 (건)'),
+        color=alt.Color('분야:N', title='분야'),
+        tooltip=['지방의회_기수', '분야', '조례수']
+    ).properties(
+        title=f'{선택_광역} 기수별 분야 조례 수 변화',
+        height=400
+    )
+    
+    st.altair_chart(line_chart, use_container_width=True)
+    
+    # CSV 다운로드
+    download_df = pivot.copy()
+    download_df['합계'] = row_sums
+    download_csv(download_df, f"광역별_기수변화_{선택_광역}_{datetime.now().strftime('%Y%m%d')}.csv")
 
 # -----------------------------
-# 탭3: 광역 내 기초자치단체 조례 현황
+# 탭3: 광역 내 기초자치단체 조례 현황 (SELECTBOX로 변경)
 # -----------------------------
 with tab3:
     st.header("3️⃣ 광역별 기초자치단체 조례 현황")
@@ -393,73 +382,71 @@ with tab3:
     전국_평균_비율 = 전국_기초_비율.mean(axis=0)
     전국_평균_건수 = 전국_기초_pivot.mean(axis=0)
     
-    for 광역 in 광역_list:
-        with st.expander(f"📊 {광역} 분석"):
-            광역_df = df[df["광역"] == 광역]
+    # Selectbox로 광역 선택
+    선택_광역3 = st.selectbox("📌 광역 선택", 광역_list, key="tab3_select")
+    
+    광역_df = df[df["광역"] == 선택_광역3]
+    
+    # 기초별로 피벗 (광역 자체 포함 - 모든 기초 값)
+    pivot = 광역_df.pivot_table(
+        index="기초",
+        columns="최종분야",
+        aggfunc='size',
+        fill_value=0
+    )
+    
+    if pivot.empty:
+        st.warning(f"{선택_광역3}에 데이터가 없습니다")
+    else:
+        # 건수와 비율을 별도 컬럼으로 분리
+        row_sums = pivot.sum(axis=1)
+        display_df = pd.DataFrame(index=pivot.index)
+        
+        # 합계 컬럼
+        display_df['합계'] = row_sums.astype(int)
+        
+        # 각 분야별로 건수와 비율을 별도 컬럼으로
+        for col in pivot.columns:
+            display_df[f'{col}_건수'] = pivot[col].astype(int)
+            display_df[f'{col}_%'] = (pivot[col] / row_sums * 100).round(2)
+        
+        # 226개 평균 행 추가
+        평균_row = {'합계': round(전국_기초_pivot.sum(axis=1).mean(), 1)}
+        for col in 분야_list:
+            if col in 전국_평균_건수.index:
+                평균_row[f'{col}_건수'] = round(전국_평균_건수[col], 1)
+                평균_row[f'{col}_%'] = round(전국_평균_비율[col], 2)
+            else:
+                평균_row[f'{col}_건수'] = 0
+                평균_row[f'{col}_%'] = 0
+        display_df.loc['226개 평균'] = 평균_row
+        
+        st.dataframe(display_df, use_container_width=True, height=600)
+        
+        # 히트맵 (226개 평균 제외)
+        heatmap_pivot = pivot.copy()
+        heatmap_row_sums = heatmap_pivot.sum(axis=1)
+        heatmap_pct = heatmap_pivot.div(heatmap_row_sums, axis=0) * 100
+        
+        if not heatmap_pct.empty:
+            chart_data = heatmap_pct.reset_index().melt(id_vars='기초', var_name='분야', value_name='비율')
             
-            # 기초별로 피벗 (광역 자체 포함 - 모든 기초 값)
-            pivot = 광역_df.pivot_table(
-                index="기초",
-                columns="최종분야",
-                aggfunc='size',
-                fill_value=0
+            chart = alt.Chart(chart_data).mark_rect().encode(
+                x=alt.X('분야:N', title=''),
+                y=alt.Y('기초:N', title='', sort='-x'),
+                color=alt.Color('비율:Q', scale=alt.Scale(scheme='greens'), title='비율(%)'),
+                tooltip=['기초', '분야', alt.Tooltip('비율:Q', format='.2f')]
+            ).properties(
+                title=f'{선택_광역3} 기초단체별 분야 비율 히트맵',
+                height=400
             )
             
-            if pivot.empty:
-                st.warning(f"{광역}에 데이터가 없습니다")
-                continue
-            
-            # 건수와 비율 결합
-            row_sums = pivot.sum(axis=1)
-            display_df = pd.DataFrame(index=pivot.index)
-            
-            # 합계 컬럼을 맨 앞에 추가
-            display_df['합계'] = [f"{int(row_sums[idx])}건" for idx in pivot.index]
-            
-            for col in pivot.columns:
-                display_df[col] = [
-                    f"{int(pivot.loc[idx, col])}건 ({pivot.loc[idx, col]/row_sums[idx]*100:.2f}%)"
-                    if row_sums[idx] > 0 else "0건 (0%)"
-                    for idx in pivot.index
-                ]
-            
-            # 226개 평균 행 추가
-            평균_row = {'합계': f"{전국_기초_pivot.sum(axis=1).mean():.1f}건"}
-            for col in 분야_list:
-                if col in 전국_평균_건수.index:
-                    avg_건수 = 전국_평균_건수[col]
-                    avg_비율 = 전국_평균_비율[col]
-                    평균_row[col] = f"{avg_건수:.1f}건 ({avg_비율:.2f}%)"
-                else:
-                    평균_row[col] = "0건 (0%)"
-            display_df.loc['226개 평균'] = 평균_row
-            
-            st.dataframe(display_df, use_container_width=True, height=600)
-            
-            # 히트맵 (226개 평균 제외)
-            heatmap_pivot = pivot.copy()
-            heatmap_row_sums = heatmap_pivot.sum(axis=1)
-            heatmap_pct = heatmap_pivot.div(heatmap_row_sums, axis=0) * 100
-            
-            if not heatmap_pct.empty:
-                chart_data = heatmap_pct.reset_index().melt(id_vars='기초', var_name='분야', value_name='비율')
-                
-                chart = alt.Chart(chart_data).mark_rect().encode(
-                    x=alt.X('분야:N', title=''),
-                    y=alt.Y('기초:N', title='', sort='-x'),
-                    color=alt.Color('비율:Q', scale=alt.Scale(scheme='greens'), title='비율(%)'),
-                    tooltip=['기초', '분야', alt.Tooltip('비율:Q', format='.2f')]
-                ).properties(
-                    title=f'{광역} 기초단체별 분야 비율 히트맵',
-                    height=400
-                )
-                
-                st.altair_chart(chart, use_container_width=True)
-            
-            # CSV 다운로드
-            download_df = pivot.copy()
-            download_df['합계'] = row_sums
-            download_csv(download_df, f"기초단체_현황_{광역}_{datetime.now().strftime('%Y%m%d')}.csv")
+            st.altair_chart(chart, use_container_width=True)
+        
+        # CSV 다운로드
+        download_df = pivot.copy()
+        download_df['합계'] = row_sums
+        download_csv(download_df, f"기초단체_현황_{선택_광역3}_{datetime.now().strftime('%Y%m%d')}.csv")
 
 # -----------------------------
 # 탭4: 전체 기수별 분야 변화 추이
@@ -479,17 +466,13 @@ with tab4:
     전국_row_sums = 전국_pivot.sum(axis=1)
     전국_비율 = 전국_pivot.div(전국_row_sums, axis=0) * 100
     
-    # 표시용 데이터프레임 (건수와 비율)
+    # 건수와 비율을 별도 컬럼으로 분리
     display_df = pd.DataFrame(index=전국_pivot.index)
-    
-    # 합계 컬럼을 맨 앞에 추가
-    display_df['합계'] = [f"{int(전국_row_sums[idx])}건" for idx in 전국_pivot.index]
+    display_df['합계'] = 전국_row_sums.astype(int)
     
     for col in 전국_pivot.columns:
-        display_df[col] = [
-            f"{int(전국_pivot.loc[idx, col])}건 ({전국_비율.loc[idx, col]:.2f}%)"
-            for idx in 전국_pivot.index
-        ]
+        display_df[f'{col}_건수'] = 전국_pivot[col].astype(int)
+        display_df[f'{col}_%'] = 전국_비율[col].round(2)
     
     st.dataframe(display_df, use_container_width=True, height=400)
     
