@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 지방자치단체 조례 통계 분석 대시보드 (기존 탭 1~6 보존 + 신규 탭 7~9 추가)
+# 지방자치단체 조례 통계 분석 대시보드 (연번 1부터 표시 + 탭 1~9 단일 라인 통합)
 
 import os
 from datetime import datetime
@@ -33,6 +33,8 @@ st.markdown("""
         padding: 0px;
         border-bottom: 2px solid #e0e0e0 !important;
         background: transparent !important;
+        /* 폭이 좁을 때 가로 스크롤 허용 */
+        overflow-x: auto; white-space: nowrap;
     }
     
     button[data-baseweb="tab"] {
@@ -133,7 +135,7 @@ if not os.path.exists(DATA_PATH):
 with st.spinner("📂 데이터 로딩 중..."):
     df = load_excel(DATA_PATH)
 
-# 필수 컬럼 확인 ❶: 지자체 유형 포함
+# 필수 컬럼 확인: 지자체 유형 포함
 required_cols = ["광역", "기초", "최종분야", "지방의회_기수", "지자체 유형"]
 missing = [c for c in required_cols if c not in df.columns]
 if missing:
@@ -147,11 +149,9 @@ df["광역"] = df["광역"].astype(str).str.strip()
 df["기초"] = df["기초"].astype(str).str.strip()
 df["지자체 유형"] = df["지자체 유형"].astype(str).str.strip()
 df["최종분야"] = df["최종분야"].astype(str).str.strip()
-
-# 지방의회_기수 정리 (문자열 그대로 유지, 정렬용 숫자 컬럼 추가)
 df["지방의회_기수"] = df["지방의회_기수"].astype(str).str.strip()
 
-# 정렬을 위한 숫자 컬럼 생성
+# 정렬용 숫자
 def extract_number(x):
     if isinstance(x, str) and "분류불가" in x:
         return 0
@@ -163,35 +163,30 @@ def extract_number(x):
 
 df["_기수_정렬용"] = df["지방의회_기수"].apply(extract_number)
 
-# 고유값 추출
+# 고유값
 광역_list = sorted(df["광역"].dropna().unique().tolist())
 분야_list = sorted(df["최종분야"].dropna().unique().tolist())
 
-# 기수 리스트 정렬 (분류불가 → 1기 → 2기 → ... → 9기)
+# 기수 정렬
 기수_unique = df[["지방의회_기수", "_기수_정렬용"]].drop_duplicates()
 기수_unique = 기수_unique.sort_values("_기수_정렬용")
 기수_list = 기수_unique["지방의회_기수"].tolist()
 st.session_state["_기수정렬"] = 기수_list
 
-# 광역 자체 / 기초 구분
+# 구분/표시용
 df["is_광역자체"] = df["광역"] == df["기초"]
-
-# 기초_full 생성 (광역+기초 조합으로 고유 식별)
 df["기초_full"] = df["광역"] + " " + df["기초"]
 
 # -----------------------------
 # 헤더 및 데이터 요약
 # -----------------------------
 st.title("📊 지방자치단체 조례 통계 분석 대시보드")
-
-# 데이터 요약 변수 계산
 이_조례수 = len(df)
 광역_unique = len(광역_list)
 기초_unique = df[~df["is_광역자체"]][['광역', '기초']].drop_duplicates().shape[0]
 분야_unique = len(분야_list)
 기수_range = f"{기수_list[0]} ~ {기수_list[-1]}"
 
-# KPI 카드
 st.markdown(f"""
 <div class="kpi">
   <div class="title">📈 데이터 요약</div>
@@ -206,11 +201,21 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # -----------------------------
-# 유틸리티 함수
+# 유틸리티
 # -----------------------------
+def add_serial(dataframe: pd.DataFrame, colname: str = "연번") -> pd.DataFrame:
+    """표시/다운로드용 연번(1..n) 컬럼을 선두에 추가. 이미 유사 번호 컬럼이 있으면 추가 생략."""
+    out = dataframe.reset_index(drop=True).copy()
+    # 충돌 최소화: 연번/번호/순번/Serial 컬럼이 이미 있으면 추가하지 않음
+    for c in ["연번", "번호", "순번", "Serial"]:
+        if c in out.columns:
+            return out
+    out.insert(0, colname, np.arange(1, len(out) + 1))
+    return out
+
 def download_csv(data, filename):
-    """CSV 다운로드 버튼"""
-    csv = data.to_csv(index=False, encoding='utf-8-sig')
+    """CSV 다운로드 버튼. 연번 1부터 포함."""
+    csv = add_serial(data).to_csv(index=False, encoding='utf-8-sig')
     st.download_button(
         label="📥 CSV 다운로드",
         data=csv,
@@ -218,7 +223,7 @@ def download_csv(data, filename):
         mime="text/csv"
     )
 
-# ───────── 새로 추가: 스코프 필터/시각화 유틸 ─────────
+# ───────── 스코프 필터/시각화 유틸 ─────────
 _SPECIAL_WIDE = {"서울특별시","부산광역시","대구광역시","인천광역시","광주광역시","대전광역시","울산광역시","세종특별자치시"}
 
 def filter_gwangyeok_scope(df_in: pd.DataFrame, scope: str) -> pd.DataFrame:
@@ -235,7 +240,6 @@ def filter_kicho_scope(df_in: pd.DataFrame, base_scope: str, sg_sub: str = None)
         m = df_in["지자체 유형"].isin(["광역지자체_자치구","광역지자체_군","기초지자체_시","기초지자체_군"])
         return df_in[m]
     elif base_scope == "시·군만":
-        # 광역시 산하 군(부산 기장 / 인천 강화·옹진) 포함
         m = df_in["지자체 유형"].isin(["기초지자체_시","기초지자체_군","광역지자체_군"])
         out = df_in[m]
         if sg_sub == "시만":
@@ -280,19 +284,22 @@ def render_line_by_term(pv: pd.DataFrame, title: str, ylabel: str = "조례 수 
     st.altair_chart(chart, use_container_width=True)
 
 # -----------------------------
-# 탭 구성 (기존 1~6 유지)
+# 탭 구성: 1~9를 단일 호출로 통합
 # -----------------------------
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "1️⃣ 기수별 광역 분석",
     "2️⃣ 광역별 기수 분석", 
     "3️⃣ 광역별 기초자치단체 분석",
     "4️⃣ 기수별 분야 분석",
     "5️⃣ 분야 집중도",
-    "6️⃣ 조례 수 순위"
+    "6️⃣ 조례 수 순위",
+    "7️⃣ 전국 분석(신)",
+    "8️⃣ 광역지자치단체 분석(신)",
+    "9️⃣ 기초지자치단체 분석(신)"
 ])
 
 # -----------------------------
-# 탭1: 기수별 광역 조례 분야 분석 (SELECTBOX로 변경)
+# 탭1: 기수별 광역 조례 분야 분석
 # -----------------------------
 with tab1:
     st.header("1️⃣ 기수별 광역자치단체 조례 분야 분석")
@@ -326,12 +333,11 @@ with tab1:
             avg_row[f'{col}_%'] = round(avg_pct, 2)
         display_df.loc[f'{광역_개수}개 평균'] = avg_row
         
-        st.dataframe(display_df.reset_index(), use_container_width=True, height=600)
+        st.dataframe(add_serial(display_df.reset_index()), use_container_width=True, height=600, hide_index=True)
         
         pivot_pct = pivot.div(row_sums, axis=0) * 100
-        heatmap_data = pivot_pct
-        if not heatmap_data.empty:
-            chart_data = heatmap_data.reset_index().melt(id_vars='광역', var_name='분야', value_name='비율')
+        if not pivot_pct.empty:
+            chart_data = pivot_pct.reset_index().melt(id_vars='광역', var_name='분야', value_name='비율')
             chart = alt.Chart(chart_data).mark_rect().encode(
                 x=alt.X('분야:N', title=''),
                 y=alt.Y('광역:N', title=''),
@@ -348,7 +354,7 @@ with tab1:
         download_csv(download_df.reset_index(), f"기수별_광역분석_{선택_기수.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.csv")
 
 # -----------------------------
-# 탭2: 광역별 기수당 조례 분야 변화 (SELECTBOX로 변경)
+# 탭2: 광역별 기수당 조례 분야 변화
 # -----------------------------
 with tab2:
     st.header("2️⃣ 광역자치단체별 기수당 조례 분야 변화")
@@ -374,7 +380,7 @@ with tab2:
         result_df[f'{분야}_%'] = pivot_pct[분야].round(2)
         result_df[f'{분야}_%p'] = pivot_growth[분야].round(2)
     
-    st.dataframe(result_df.reset_index(), use_container_width=True, height=400)
+    st.dataframe(add_serial(result_df.reset_index()), use_container_width=True, height=400, hide_index=True)
     
     chart_data = pivot.reset_index().melt(id_vars='지방의회_기수', var_name='분야', value_name='조례수')
     line_chart = alt.Chart(chart_data).mark_line(point=True).encode(
@@ -393,7 +399,7 @@ with tab2:
     download_csv(download_df.reset_index(), f"광역별_기수변화_{선택_광역}_{datetime.now().strftime('%Y%m%d')}.csv")
 
 # -----------------------------
-# 탭3: 광역 내 기초자치단체 조례 현황 (SELECTBOX로 변경)
+# 탭3: 광역 내 기초자치단체 조례 현황
 # -----------------------------
 with tab3:
     st.header("3️⃣ 광역별 기초자치단체 조례 현황")
@@ -440,11 +446,10 @@ with tab3:
                 평균_row[f'{col}_%'] = 0
         display_df.loc['226개 평균'] = 평균_row
         
-        st.dataframe(display_df.reset_index(), use_container_width=True, height=600)
+        st.dataframe(add_serial(display_df.reset_index()), use_container_width=True, height=600, hide_index=True)
         
         heatmap_pivot = pivot.copy()
-        heatmap_row_sums = heatmap_pivot.sum(axis=1)
-        heatmap_pct = heatmap_pivot.div(heatmap_row_sums, axis=0) * 100
+        heatmap_pct = heatmap_pivot.div(heatmap_pivot.sum(axis=1), axis=0) * 100
         
         if not heatmap_pct.empty:
             chart_data = heatmap_pct.reset_index().melt(id_vars='기초', var_name='분야', value_name='비율')
@@ -485,7 +490,7 @@ with tab4:
         display_df[f'{col}_건수'] = 전국_pivot[col].astype(int)
         display_df[f'{col}_%'] = 전국_비율[col].round(2)
     
-    st.dataframe(display_df.reset_index(), use_container_width=True, height=400)
+    st.dataframe(add_serial(display_df.reset_index()), use_container_width=True, height=400, hide_index=True)
     
     chart_data = 전국_pivot.reset_index().melt(
         id_vars='지방의회_기수', 
@@ -546,7 +551,7 @@ with tab5:
     
     with col1:
         st.subheader("기초단체별 집중도 순위")
-        st.dataframe(집중도_df.round(2), use_container_width=True, height=600, hide_index=True)
+        st.dataframe(add_serial(집중도_df.round(2)), use_container_width=True, height=600, hide_index=True)
         download_csv(집중도_df.round(2), f"기초_분야집중도_{datetime.now().strftime('%Y%m%d')}.csv")
     
     with col2:
@@ -610,7 +615,7 @@ with tab6:
         col1, col2 = st.columns([1, 1])
         with col1:
             st.markdown("**Top 50**")
-            st.dataframe(기초_조례수.head(50), use_container_width=True, height=600, hide_index=True)
+            st.dataframe(add_serial(기초_조례수.head(50)), use_container_width=True, height=600, hide_index=True)
         with col2:
             st.markdown("**Top 30 차트**")
             top30 = 기초_조례수.head(30).copy()
@@ -624,7 +629,7 @@ with tab6:
             st.altair_chart(bar_chart, use_container_width=True)
         st.markdown("---")
         st.subheader("전체 기초자치단체 순위")
-        st.dataframe(기초_조례수, use_container_width=True, height=400, hide_index=True)
+        st.dataframe(add_serial(기초_조례수), use_container_width=True, height=400, hide_index=True)
         download_csv(기초_조례수, f"기초단체_순위_{datetime.now().strftime('%Y%m%d')}.csv")
     
     with 순위_tab2:
@@ -632,7 +637,7 @@ with tab6:
         col1, col2 = st.columns([1, 1])
         with col1:
             st.markdown("**전체 순위**")
-            st.dataframe(광역_조례수, use_container_width=True, height=600, hide_index=True)
+            st.dataframe(add_serial(광역_조례수), use_container_width=True, height=600, hide_index=True)
         with col2:
             st.markdown("**순위 차트**")
             bar_chart = alt.Chart(광역_조례수).mark_bar().encode(
@@ -649,7 +654,7 @@ with tab6:
         col1, col2 = st.columns([1, 1])
         with col1:
             st.markdown("**Top 50**")
-            st.dataframe(전체_조례수.head(50), use_container_width=True, height=600, hide_index=True)
+            st.dataframe(add_serial(전체_조례수.head(50)), use_container_width=True, height=600, hide_index=True)
         with col2:
             st.markdown("**Top 30 차트**")
             top30 = 전체_조례수.head(30).copy()
@@ -666,7 +671,7 @@ with tab6:
             st.altair_chart(bar_chart, use_container_width=True)
         st.markdown("---")
         st.subheader("전체 순위")
-        st.dataframe(전체_조례수, use_container_width=True, height=400, hide_index=True)
+        st.dataframe(add_serial(전체_조례수), use_container_width=True, height=400, hide_index=True)
         download_csv(전체_조례수, f"전체_순위_{datetime.now().strftime('%Y%m%d')}.csv")
     
     st.markdown("---")
@@ -674,7 +679,7 @@ with tab6:
     광역_평균 = 기초_조례수.groupby('광역')['조례수'].agg(['mean', 'count']).reset_index()
     광역_평균.columns = ['광역', '평균조례수', '기초단체수']
     광역_평균 = 광역_평균.sort_values('평균조례수', ascending=False).round(2)
-    st.dataframe(광역_평균, use_container_width=True, hide_index=True)
+    st.dataframe(add_serial(광역_평균), use_container_width=True, hide_index=True)
     bar_chart2 = alt.Chart(광역_평균).mark_bar().encode(
         x=alt.X('평균조례수:Q', title='평균 조례 수'),
         y=alt.Y('광역:N', sort='-x', title=''),
@@ -684,27 +689,19 @@ with tab6:
     st.altair_chart(bar_chart2, use_container_width=True)
 
 # ─────────────────────────────────
-# 새 탭: 7, 8, 9 (기존 1~6 보존 + 신규 스코프형 메뉴)
+# 탭7~9: 스코프형 신규 메뉴
 # ─────────────────────────────────
-tab7, tab8, tab9 = st.tabs([
-    "7️⃣ 전국 분석(신)",
-    "8️⃣ 광역지자체 분석(신)",
-    "9️⃣ 기초지자치단체 분석(신)"
-])
-
-# 7) 전국 분석(신)
 with tab7:
     st.header("7️⃣ 전국 분석(신)")
     st.caption("전국 단위에서 기수×분야 흐름과 비중 변화를 확인합니다.")
     pv_nat = pivot_counts(df, idx="지방의회_기수", col="최종분야")
     st.subheader("① 전국 기수별·분야별 추이")
-    st.dataframe(pv_nat.assign(합계=pv_nat.sum(axis=1)).reset_index(), use_container_width=True, height=420)
+    st.dataframe(add_serial(pv_nat.assign(합계=pv_nat.sum(axis=1)).reset_index()), use_container_width=True, height=420, hide_index=True)
     render_line_by_term(pv_nat, title="전국 기수별 분야 조례 수 변화", height=460, term_sort=기수_list)
     download_csv(pv_nat.assign(합계=pv_nat.sum(axis=1)).reset_index(), f"전국_기수별_분야_{datetime.now().strftime('%Y%m%d')}.csv")
     st.subheader("② 전국 분야 비중 변화")
     render_pct_heatmap(pv_nat, idx_name="지방의회_기수", title="전국 기수별 분야 비율 히트맵", scheme="tealblues", height=460)
 
-# 8) 광역지자체 분석(신)
 with tab8:
     st.header("8️⃣ 광역지자치단체 분석(신)")
     colA, colB = st.columns([1.2, 2.0])
@@ -719,7 +716,7 @@ with tab8:
     tdf = scoped if sel_term == "전체" else scoped[scoped["지방의회_기수"] == sel_term]
     pv = pivot_counts(tdf, idx="광역", col="최종분야")
     st.caption(f"스코프: {scope} | 기준: {'전체' if sel_term=='전체' else sel_term}")
-    st.dataframe(pv.assign(합계=pv.sum(axis=1)).reset_index(), use_container_width=True, height=480)
+    st.dataframe(add_serial(pv.assign(합계=pv.sum(axis=1)).reset_index()), use_container_width=True, height=480, hide_index=True)
     render_pct_heatmap(pv, idx_name="광역", title=f"광역별 분야 비율 히트맵 ({'전체' if sel_term=='전체' else sel_term})", scheme="blues", height=480)
     download_csv(pv.assign(합계=pv.sum(axis=1)).reset_index(), f"광역별_분야_{scope}_{datetime.now():%Y%m%d}.csv")
 
@@ -728,7 +725,7 @@ with tab8:
     sel_w = st.selectbox("광역 선택", sorted(scoped["광역"].unique().tolist()), index=0, key="wide_pick_new")
     wdf = scoped[scoped["광역"] == sel_w]
     pvW = pivot_counts(wdf, idx="지방의회_기수", col="최종분야")
-    st.dataframe(pvW.assign(합계=pvW.sum(axis=1)).reset_index(), use_container_width=True, height=420)
+    st.dataframe(add_serial(pvW.assign(합계=pvW.sum(axis=1)).reset_index()), use_container_width=True, height=420, hide_index=True)
     render_line_by_term(pvW, title=f"{sel_w} 기수별 분야 조례 수 변화", height=420, term_sort=기수_list)
     download_csv(pvW.assign(합계=pvW.sum(axis=1)).reset_index(), f"{sel_w}_기수별_분야_{datetime.now():%Y%m%d}.csv")
 
@@ -739,7 +736,6 @@ with tab8:
 - 세종은 기초자치단체가 없는 단층제 광역입니다.
         """)
 
-# 9) 기초지자치단체 분석(신)
 with tab9:
     st.header("9️⃣ 기초지자치단체 분석(신)")
     c1, c2, c3 = st.columns([1.5,1.2,2.5])
@@ -759,7 +755,7 @@ with tab9:
     st.subheader("① 기초 단위 분야별 비교")
     pvL = pivot_counts(ldf, idx="기초_full", col="최종분야")
     st.caption(f"스코프: {base_scope}{' · '+sg_sub if sg_sub and base_scope=='시·군만' else ''} | 광역: {', '.join(sel_w2) if sel_w2 else '전국'}")
-    st.dataframe(pvL.assign(합계=pvL.sum(axis=1)).reset_index().rename(columns={"기초_full":"지자체"}), use_container_width=True, height=520)
+    st.dataframe(add_serial(pvL.assign(합계=pvL.sum(axis=1)).reset_index().rename(columns={"기초_full":"지자체"})), use_container_width=True, height=520, hide_index=True)
     render_pct_heatmap(pvL, idx_name="기초_full", title="기초 단위 분야 비율 히트맵", scheme="greens", height=520)
     download_csv(pvL.assign(합계=pvL.sum(axis=1)).reset_index().rename(columns={"기초_full":"지자체"}), f"기초_분야_{base_scope}_{datetime.now():%Y%m%d}.csv")
 
@@ -772,7 +768,7 @@ with tab9:
         sel_local = st.selectbox("기초 선택", klist, index=0, key="local_pick_new")
         ldf2 = ldf[ldf["기초_full"] == sel_local]
         pvL2 = pivot_counts(ldf2, idx="지방의회_기수", col="최종분야")
-        st.dataframe(pvL2.assign(합계=pvL2.sum(axis=1)).reset_index(), use_container_width=True, height=380)
+        st.dataframe(add_serial(pvL2.assign(합계=pvL2.sum(axis=1)).reset_index()), use_container_width=True, height=380, hide_index=True)
         render_line_by_term(pvL2, title=f"{sel_local} 기수별 분야 조례 수 변화", height=420, term_sort=기수_list)
         download_csv(pvL2.assign(합계=pvL2.sum(axis=1)).reset_index(), f"{sel_local}_기수별_분야_{datetime.now():%Y%m%d}.csv")
 
@@ -784,4 +780,4 @@ with tab9:
         """)
 
 st.markdown("---")
-st.caption("© 2025 지방자치단체 조례 통계 분석 대시보드 (v2: 스코프형 메뉴 추가)")
+st.caption("© 2025 지방자치단체 조례 통계 분석 대시보드 (v2: 스코프형 메뉴 + 연번 1부터)")
