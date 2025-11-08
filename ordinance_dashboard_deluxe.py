@@ -233,10 +233,10 @@ def download_csv(data, filename):
     """CSV 다운로드 버튼. 연번 1부터 포함."""
     csv = add_serial(data).to_csv(index=False, encoding='cp949')
     st.download_button(
-        label="📥 CSV 다운로드",
+        label="📥 Excel로 열기용",
         data=csv,
-        file_name=filename,
-        mime="text/csv"
+        file_name=filename.replace(".csv", ".xls"),
+        mime="application/vnd.ms-excel"
     )
 
 # ───────── 스코프 필터/시각화 유틸 ─────────
