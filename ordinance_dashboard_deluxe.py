@@ -229,14 +229,55 @@ def add_serial(dataframe: pd.DataFrame, colname: str = "연번") -> pd.DataFrame
     out.insert(0, colname, np.arange(1, len(out) + 1))
     return out
 
-def download_csv(data, filename):
-    """CSV 다운로드 버튼. 연번 1부터 포함."""
-    csv = add_serial(data).to_csv(index=False, encoding='cp949')
+from io import BytesIO
+from openpyxl.utils import get_column_letter
+import pandas as pd
+import numpy as np
+
+def _autosize_columns(writer, sheet_name: str, df: pd.DataFrame, sample_rows: int = 200):
+    """openpyxl 워크시트의 컬럼 너비를 자동 맞춤"""
+    ws = writer.sheets[sheet_name]
+    sample = df.head(sample_rows)
+    for idx, col in enumerate(sample.columns, start=1):
+        max_len = len(str(col))
+        col_vals = sample[col].astype("string").fillna("").tolist()
+        if col_vals:
+            max_len = max(max_len, max(len(v) for v in col_vals))
+        ws.column_dimensions[get_column_letter(idx)].width = min(max_len + 2, 60)
+
+def download_csv(data: pd.DataFrame, filename: str, sheet_name: str = "data"):
+    """
+    Excel(.xlsx) 다운로드 버튼 (통합 최적 버전)
+    - 연번(1..n) 자동 추가
+    - 1,048,576행 초과 시 자동으로 시트 분할
+    - 한글/셀 구분 100% 보장(.xlsx 생성)
+    - 기존 호출부는 그대로 사용 가능(함수명 유지)
+    """
+    df = add_serial(data)
+    max_rows = 1_048_576
+    buf = BytesIO()
+
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        if len(df) == 0:
+            pd.DataFrame(columns=df.columns).to_excel(writer, index=False, sheet_name=sheet_name)
+            _autosize_columns(writer, sheet_name, df)
+        elif len(df) <= max_rows:
+            df.to_excel(writer, index=False, sheet_name=sheet_name)
+            _autosize_columns(writer, sheet_name, df)
+        else:
+            part = 1
+            for start in range(0, len(df), max_rows):
+                end = min(start + max_rows, len(df))
+                sh = f"{sheet_name}_{part}"
+                df.iloc[start:end].to_excel(writer, index=False, sheet_name=sh)
+                _autosize_columns(writer, sh, df.iloc[start:end])
+                part += 1
+
     st.download_button(
-        label="📥 Excel로 열기용",
-        data=csv,
-        file_name=filename.replace(".csv", ".xls"),
-        mime="application/vnd.ms-excel"
+        label="📥 Excel 다운로드",
+        data=buf.getvalue(),
+        file_name=filename.replace(".csv", ".xlsx"),
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 # ───────── 스코프 필터/시각화 유틸 ─────────
